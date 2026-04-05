@@ -3,6 +3,9 @@ import {
   generateObject,
   getTextModelAvailability,
 } from '@ratley/react-native-apple-foundation-models';
+import type { JSONSchema } from '@ratley/react-native-apple-foundation-models';
+
+const SENTIMENTS = ['positive', 'negative', 'neutral'] as const;
 
 const EMOTIONS = [
   'joy', 'sadness', 'anger', 'fear', 'surprise', 'disgust',
@@ -11,27 +14,28 @@ const EMOTIONS = [
 ] as const;
 
 const SENTIMENT_SCHEMA = {
-  type: 'object' as const,
+  type: 'object',
   required: ['sentiment', 'emotions', 'confidence'],
   properties: {
     sentiment: {
-      type: 'string' as const,
+      type: 'string',
+      enum: [...SENTIMENTS],
     },
     emotions: {
-      type: 'array' as const,
-      items: { type: 'string' as const },
+      type: 'array',
+      items: { type: 'string', enum: [...EMOTIONS] },
     },
     confidence: {
-      type: 'number' as const,
+      type: 'number',
       minimum: 0,
       maximum: 1,
     },
   },
-};
+} satisfies JSONSchema;
 
 export type SentimentResult = {
-  sentiment: 'positive' | 'negative' | 'neutral';
-  emotions: string[];
+  sentiment: (typeof SENTIMENTS)[number];
+  emotions: (typeof EMOTIONS)[number][];
   confidence: number;
 };
 
@@ -53,7 +57,7 @@ export function useSentimentAnalyzer() {
         );
       }
 
-      const response = await generateObject({
+      const response = await generateObject<SentimentResult>({
         prompt: text,
         instructions: `You are a sentiment analyzer. Given text, classify its sentiment and emotions.
 
@@ -64,10 +68,9 @@ Return:
 
 Do NOT repeat or paraphrase any of the input text.`,
         schema: SENTIMENT_SCHEMA,
-        temperature: 0.2,
       });
 
-      setResult(response as SentimentResult);
+      setResult(response.object);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed');
     } finally {

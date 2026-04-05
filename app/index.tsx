@@ -17,54 +17,73 @@ function formatDuration(seconds: number): string {
 
 export default function HomeScreen() {
   const [appState, setAppState] = useState<AppState>('idle');
-  const recorder = useAudioRecorder();
-  const transcriber = useTranscriber();
-  const analyzer = useSentimentAnalyzer();
+  const [error, setError] = useState<string | null>(null);
+
+  const { state: recorderState, duration, startRecording, stopRecording } = useAudioRecorder();
+  const {
+    transcript, isTranscribing, error: transcribeError,
+    transcribe, reset: resetTranscriber,
+  } = useTranscriber();
+  const {
+    result: sentimentResult, isAnalyzing, error: analyzerError,
+    analyze, reset: resetAnalyzer,
+  } = useSentimentAnalyzer();
 
   const handleRecord = async () => {
+    setError(null);
     try {
-      await recorder.startRecording();
+      await startRecording();
       setAppState('recording');
     } catch (e) {
-      console.error('Failed to start recording:', e);
+      setError(e instanceof Error ? e.message : 'Failed to start recording');
     }
   };
 
   const handleStop = async () => {
-    const uri = await recorder.stopRecording();
-    if (uri) {
+    try {
+      const uri = await stopRecording();
+      if (!uri) {
+        setError('No audio was captured');
+        setAppState('idle');
+        return;
+      }
       setAppState('processing');
-      await transcriber.transcribe(uri);
+      await transcribe(uri);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to stop recording');
+      setAppState('idle');
     }
   };
 
   const handleReset = () => {
-    transcriber.reset();
-    analyzer.reset();
+    resetTranscriber();
+    resetAnalyzer();
+    setError(null);
     setAppState('idle');
   };
 
-  // Chain: transcription done → start analysis
+  // Chain: transcription done → start analysis or show results
   useEffect(() => {
-    if (appState === 'processing' && !transcriber.isTranscribing) {
-      if (transcriber.transcript) {
-        analyzer.analyze(transcriber.transcript);
-      } else if (transcriber.error) {
-        setAppState('results');
-      }
+    if (appState !== 'processing' || isTranscribing) return;
+
+    if (transcript) {
+      analyze(transcript);
+    } else {
+      // Empty transcript or transcription error — go to results either way
+      setAppState('results');
     }
-  }, [appState, transcriber.isTranscribing, transcriber.transcript, transcriber.error]);
+  }, [appState, isTranscribing, transcript, transcribeError, analyze]);
 
   // Chain: analysis done → show results
   useEffect(() => {
-    if (appState === 'processing' && !analyzer.isAnalyzing && (analyzer.result || analyzer.error)) {
+    if (appState === 'processing' && !isAnalyzing && (sentimentResult || analyzerError)) {
       setAppState('results');
     }
-  }, [appState, analyzer.isAnalyzing, analyzer.result, analyzer.error]);
+  }, [appState, isAnalyzing, sentimentResult, analyzerError]);
 
-  const processingLabel = transcriber.isTranscribing
+  const processingLabel = isTranscribing
     ? 'Transcribing...'
-    : analyzer.isAnalyzing
+    : isAnalyzing
       ? 'Analyzing sentiment...'
       : 'Processing...';
 
@@ -79,13 +98,16 @@ export default function HomeScreen() {
               <View style={styles.recordDot} />
             </Pressable>
             <ThemedText style={styles.hint}>Tap to record</ThemedText>
+            {error && (
+              <ThemedText style={styles.errorText}>{error}</ThemedText>
+            )}
           </View>
         )}
 
         {appState === 'recording' && (
           <View style={styles.center}>
             <ThemedText style={styles.timer}>
-              {formatDuration(recorder.duration)}
+              {formatDuration(duration)}
             </ThemedText>
             <Pressable style={styles.stopButton} onPress={handleStop}>
               <View style={styles.stopSquare} />
@@ -102,29 +124,29 @@ export default function HomeScreen() {
 
         {appState === 'results' && (
           <ScrollView style={styles.results} contentContainerStyle={styles.resultsContent}>
-            {transcriber.transcript ? (
+            {transcript ? (
               <>
                 <ThemedText type="subtitle">Transcript</ThemedText>
-                <ThemedText style={styles.transcript}>{transcriber.transcript}</ThemedText>
+                <ThemedText style={styles.transcript}>{transcript}</ThemedText>
               </>
             ) : (
               <ThemedText style={styles.hint}>No speech detected</ThemedText>
             )}
 
-            {transcriber.error && (
-              <ThemedText style={styles.errorText}>{transcriber.error}</ThemedText>
+            {transcribeError && (
+              <ThemedText style={styles.errorText}>{transcribeError}</ThemedText>
             )}
 
-            {analyzer.result && (
+            {sentimentResult && (
               <>
                 <ThemedText type="subtitle">Sentiment</ThemedText>
                 <ThemedText style={styles.sentimentValue}>
-                  {analyzer.result.sentiment} ({Math.round(analyzer.result.confidence * 100)}%)
+                  {sentimentResult.sentiment} ({Math.round(sentimentResult.confidence * 100)}%)
                 </ThemedText>
 
                 <ThemedText type="subtitle" style={styles.emotionsLabel}>Emotions</ThemedText>
                 <View style={styles.emotionTags}>
-                  {analyzer.result.emotions.map((emotion) => (
+                  {sentimentResult.emotions.map((emotion) => (
                     <View key={emotion} style={styles.tag}>
                       <ThemedText style={styles.tagText}>{emotion}</ThemedText>
                     </View>
@@ -133,8 +155,8 @@ export default function HomeScreen() {
               </>
             )}
 
-            {analyzer.error && (
-              <ThemedText style={styles.errorText}>{analyzer.error}</ThemedText>
+            {analyzerError && (
+              <ThemedText style={styles.errorText}>{analyzerError}</ThemedText>
             )}
 
             <Pressable style={styles.resetButton} onPress={handleReset}>
