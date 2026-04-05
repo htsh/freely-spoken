@@ -38,6 +38,19 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow mic-check to access your microphone for voice recording."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow mic-check to access your microphone.",
+          "speechRecognitionPermission": "Allow mic-check to use speech recognition to transcribe your recordings."
+        }
       ]
     ],
     "experiments": {
