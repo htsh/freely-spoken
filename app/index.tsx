@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { useTranscriber } from '@/hooks/use-transcriber';
+import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
 
 type AppState = 'idle' | 'recording' | 'processing' | 'results';
 
@@ -18,6 +19,7 @@ export default function HomeScreen() {
   const [appState, setAppState] = useState<AppState>('idle');
   const recorder = useAudioRecorder();
   const transcriber = useTranscriber();
+  const analyzer = useSentimentAnalyzer();
 
   const handleRecord = async () => {
     try {
@@ -38,16 +40,33 @@ export default function HomeScreen() {
 
   const handleReset = () => {
     transcriber.reset();
+    analyzer.reset();
     setAppState('idle');
   };
 
+  // Chain: transcription done → start analysis
   useEffect(() => {
     if (appState === 'processing' && !transcriber.isTranscribing) {
-      if (transcriber.transcript || transcriber.error) {
+      if (transcriber.transcript) {
+        analyzer.analyze(transcriber.transcript);
+      } else if (transcriber.error) {
         setAppState('results');
       }
     }
   }, [appState, transcriber.isTranscribing, transcriber.transcript, transcriber.error]);
+
+  // Chain: analysis done → show results
+  useEffect(() => {
+    if (appState === 'processing' && !analyzer.isAnalyzing && (analyzer.result || analyzer.error)) {
+      setAppState('results');
+    }
+  }, [appState, analyzer.isAnalyzing, analyzer.result, analyzer.error]);
+
+  const processingLabel = transcriber.isTranscribing
+    ? 'Transcribing...'
+    : analyzer.isAnalyzing
+      ? 'Analyzing sentiment...'
+      : 'Processing...';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,7 +96,7 @@ export default function HomeScreen() {
 
         {appState === 'processing' && (
           <View style={styles.center}>
-            <ThemedText>Transcribing...</ThemedText>
+            <ThemedText>{processingLabel}</ThemedText>
           </View>
         )}
 
@@ -96,7 +115,27 @@ export default function HomeScreen() {
               <ThemedText style={styles.errorText}>{transcriber.error}</ThemedText>
             )}
 
-            {/* TODO: sentiment results go here */}
+            {analyzer.result && (
+              <>
+                <ThemedText type="subtitle">Sentiment</ThemedText>
+                <ThemedText style={styles.sentimentValue}>
+                  {analyzer.result.sentiment} ({Math.round(analyzer.result.confidence * 100)}%)
+                </ThemedText>
+
+                <ThemedText type="subtitle" style={styles.emotionsLabel}>Emotions</ThemedText>
+                <View style={styles.emotionTags}>
+                  {analyzer.result.emotions.map((emotion) => (
+                    <View key={emotion} style={styles.tag}>
+                      <ThemedText style={styles.tagText}>{emotion}</ThemedText>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {analyzer.error && (
+              <ThemedText style={styles.errorText}>{analyzer.error}</ThemedText>
+            )}
 
             <Pressable style={styles.resetButton} onPress={handleReset}>
               <ThemedText style={styles.resetText}>Record Again</ThemedText>
@@ -175,6 +214,30 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
     lineHeight: 22,
+  },
+  sentimentValue: {
+    marginTop: 4,
+    marginBottom: 16,
+    fontSize: 18,
+    textTransform: 'capitalize',
+  },
+  emotionsLabel: {
+    marginTop: 8,
+  },
+  emotionTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  tag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  tagText: {
+    fontSize: 14,
   },
   errorText: {
     color: '#ff3b30',
