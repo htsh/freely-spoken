@@ -19,7 +19,7 @@ export default function HomeScreen() {
   const [appState, setAppState] = useState<AppState>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const { state: recorderState, duration, startRecording, stopRecording } = useAudioRecorder();
+  const { duration, startRecording, stopRecording } = useAudioRecorder();
   const {
     transcript, isTranscribing, error: transcribeError,
     transcribe, reset: resetTranscriber,
