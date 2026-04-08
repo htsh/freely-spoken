@@ -218,6 +218,7 @@ const styles = StyleSheet.create({
   },
   timer: {
     fontSize: 48,
+    lineHeight: 56,
     fontVariant: ['tabular-nums'],
     marginBottom: 24,
   },
