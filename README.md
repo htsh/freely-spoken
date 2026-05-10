@@ -63,6 +63,25 @@ On first launch, the app will request:
 
 Allow both.
 
+## Debugging and testing
+
+There is no automated test suite yet. Start with:
+
+```bash
+npm run lint
+```
+
+For sentiment iteration without recording audio, use the dev-only `Debug -> sentiment` link on the home screen. It opens `/debug`, runs the production sentiment hook, and shows both normalized results and raw model output.
+
+For faster prompt checks on macOS, use the Swift CLI:
+
+```bash
+cd tools/sentiment-cli
+swift run sentiment-cli --raw "I love them, but I'm angry about what happened."
+```
+
+See [docs/debug-testing.md](docs/debug-testing.md) for the full test matrix, fixture workflow, and end-to-end device checklist.
+
 ## Troubleshooting
 
 | Problem | Fix |

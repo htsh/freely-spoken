@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { StyleSheet, View, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
@@ -92,6 +93,16 @@ export default function HomeScreen() {
       <ThemedView style={styles.container}>
         <ThemedText type="title" style={styles.title}>mic-check</ThemedText>
 
+        {__DEV__ && (
+          <Pressable
+            style={styles.debugLink}
+            onPress={() => router.push('/debug')}
+            hitSlop={8}
+          >
+            <ThemedText style={styles.debugLinkText}>Debug → sentiment</ThemedText>
+          </Pressable>
+        )}
+
         {appState === 'idle' && (
           <View style={styles.center}>
             <Pressable style={styles.recordButton} onPress={handleRecord}>
@@ -180,6 +191,18 @@ const styles = StyleSheet.create({
   title: {
     textAlign: 'center',
     marginTop: 40,
+  },
+  debugLink: {
+    alignSelf: 'center',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(10,126,164,0.15)',
+  },
+  debugLinkText: {
+    fontSize: 12,
+    opacity: 0.8,
   },
   center: {
     flex: 1,

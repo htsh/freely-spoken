@@ -49,6 +49,13 @@ export type SentimentResult = {
   confidence: number;
 };
 
+export type RawSentimentResponse = {
+  /** Which path produced this output. `text-fallback` means generateObject failed and we re-asked with generateText. */
+  strategy: 'object' | 'text-fallback';
+  /** Pretty-printed model output (object stringified, or raw text for the fallback path). */
+  value: string;
+};
+
 const SENTIMENT_PROMPT = `You are a sentiment analyzer. Given text, classify its sentiment and emotions.
 
 Return a single JSON object with:
@@ -262,11 +269,13 @@ function parseStructuredSentiment(text: string): SentimentResult {
 
 export function useSentimentAnalyzer() {
   const [result, setResult] = useState<SentimentResult | null>(null);
+  const [raw, setRaw] = useState<RawSentimentResponse | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const analyze = useCallback(async (text: string) => {
     setResult(null);
+    setRaw(null);
     setError(null);
     setIsAnalyzing(true);
 
@@ -285,6 +294,10 @@ export function useSentimentAnalyzer() {
           schema: SENTIMENT_SCHEMA,
         });
 
+        setRaw({
+          strategy: 'object',
+          value: JSON.stringify(response.object, null, 2),
+        });
         setResult({
           sentiment: normalizeSentiment(response.object.sentiment),
           emotions: normalizeEmotions(response.object.emotions),
@@ -298,6 +311,7 @@ export function useSentimentAnalyzer() {
           maxOutputTokens: 256,
         });
 
+        setRaw({ strategy: 'text-fallback', value: response.text });
         setResult(parseStructuredSentiment(response.text));
       }
     } catch (e) {
@@ -313,9 +327,10 @@ export function useSentimentAnalyzer() {
 
   const reset = useCallback(() => {
     setResult(null);
+    setRaw(null);
     setError(null);
     setIsAnalyzing(false);
   }, []);
 
-  return { result, isAnalyzing, error, analyze, reset };
+  return { result, raw, isAnalyzing, error, analyze, reset };
 }
