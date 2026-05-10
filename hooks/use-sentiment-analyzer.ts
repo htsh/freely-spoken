@@ -21,11 +21,12 @@ type RawSentimentResult = {
   sentiment?: unknown;
   emotions?: unknown;
   confidence?: unknown;
+  anonymizedText?: unknown;
 };
 
 const SENTIMENT_SCHEMA = {
   type: 'object',
-  required: ['sentiment', 'emotions', 'confidence'],
+  required: ['sentiment', 'emotions', 'confidence', 'anonymizedText'],
   properties: {
     sentiment: {
       type: 'string',
@@ -40,6 +41,10 @@ const SENTIMENT_SCHEMA = {
       minimum: 0,
       maximum: 100,
     },
+    anonymizedText: {
+      type: 'string',
+      minLength: 1,
+    },
   },
 } satisfies JSONSchema;
 
@@ -47,6 +52,7 @@ export type SentimentResult = {
   sentiment: Sentiment;
   emotions: Emotion[];
   confidence: number;
+  anonymizedText: string;
 };
 
 export type RawSentimentResponse = {
@@ -62,9 +68,15 @@ Return a single JSON object with:
 - sentiment: exactly one of "positive", "negative", or "neutral"
 - emotions: an array of emotions present. Choose ONLY from: ${EMOTIONS.join(', ')}
 - confidence: a number between 0 and 1 indicating how confident you are
+- anonymizedText: a privacy-preserving rewrite that keeps the emotional gist and broad concern, but removes identifying specifics
 
 If the text is ambiguous, choose the closest sentiment and use a conservative confidence.
-Do NOT repeat or paraphrase any of the input text.
+For anonymizedText:
+- Remove or generalize names, exact locations, employers, schools, organizations, dates, times, ages, contact details, account numbers, addresses, medical/legal/financial identifiers, and uniquely identifying events.
+- Use generic descriptors like "a family member", "a workplace", "a medical issue", or "a recent event" when needed.
+- Do not add advice, diagnosis, explanations, or facts that are not in the input.
+- If a detail could identify a real person, place, organization, or incident, omit it or generalize it.
+Do NOT quote the input or preserve identifying phrases.
 Do NOT include markdown, code fences, or explanatory text.`;
 
 const SENTIMENT_ALIASES: Record<string, Sentiment> = {
@@ -200,6 +212,19 @@ function normalizeConfidence(value: unknown): number {
   return Math.min(Math.max(normalized, 0), 1);
 }
 
+function normalizeAnonymizedText(value: unknown): string {
+  if (typeof value !== 'string') {
+    return 'The person is dealing with a personal situation and wants advice while keeping identifying details private.';
+  }
+
+  const trimmed = value.trim().replace(/\s+/g, ' ');
+  if (!trimmed) {
+    return 'The person is dealing with a personal situation and wants advice while keeping identifying details private.';
+  }
+
+  return trimmed;
+}
+
 function extractFirstJSONObject(text: string): string | null {
   let start = -1;
   let depth = 0;
@@ -264,6 +289,7 @@ function parseStructuredSentiment(text: string): SentimentResult {
     sentiment: normalizeSentiment(parsed.sentiment),
     emotions: normalizeEmotions(parsed.emotions),
     confidence: normalizeConfidence(parsed.confidence),
+    anonymizedText: normalizeAnonymizedText(parsed.anonymizedText),
   };
 }
 
@@ -302,13 +328,14 @@ export function useSentimentAnalyzer() {
           sentiment: normalizeSentiment(response.object.sentiment),
           emotions: normalizeEmotions(response.object.emotions),
           confidence: normalizeConfidence(response.object.confidence),
+          anonymizedText: normalizeAnonymizedText(response.object.anonymizedText),
         });
       } catch {
         const response = await generateText({
           prompt: text,
           instructions: SENTIMENT_PROMPT,
           temperature: 0.2,
-          maxOutputTokens: 256,
+          maxOutputTokens: 384,
         });
 
         setRaw({ strategy: 'text-fallback', value: response.text });

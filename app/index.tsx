@@ -85,7 +85,7 @@ export default function HomeScreen() {
   const processingLabel = isTranscribing
     ? 'Transcribing...'
     : isAnalyzing
-      ? 'Analyzing sentiment...'
+      ? 'Analyzing sentiment and privacy...'
       : 'Processing...';
 
   return (
@@ -99,7 +99,7 @@ export default function HomeScreen() {
             onPress={() => router.push('/debug')}
             hitSlop={8}
           >
-            <ThemedText style={styles.debugLinkText}>Debug → sentiment</ThemedText>
+            <ThemedText style={styles.debugLinkText}>Debug → sentiment + privacy</ThemedText>
           </Pressable>
         )}
 
@@ -163,6 +163,13 @@ export default function HomeScreen() {
                     </View>
                   ))}
                 </View>
+
+                <ThemedText type="subtitle" style={styles.anonymousLabel}>
+                  Anonymous version
+                </ThemedText>
+                <ThemedText style={styles.anonymousText}>
+                  {sentimentResult.anonymizedText}
+                </ThemedText>
               </>
             )}
 
@@ -269,6 +276,13 @@ const styles = StyleSheet.create({
   },
   emotionsLabel: {
     marginTop: 8,
+  },
+  anonymousLabel: {
+    marginTop: 24,
+  },
+  anonymousText: {
+    marginTop: 8,
+    lineHeight: 22,
   },
   emotionTags: {
     flexDirection: 'row',

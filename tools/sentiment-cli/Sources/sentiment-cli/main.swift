@@ -28,6 +28,9 @@ struct Sentiment: Codable {
 
     @Guide(description: "Confidence between 0 and 1.")
     let confidence: Double
+
+    @Guide(description: "Privacy-preserving rewrite that keeps the broad concern and emotional gist while removing identifying specifics.")
+    let anonymizedText: String
 }
 
 let allowedEmotions = [
@@ -43,9 +46,15 @@ Return a single JSON object with:
 - sentiment: exactly one of "positive", "negative", or "neutral"
 - emotions: an array of emotions present. Choose ONLY from: \(allowedEmotions.joined(separator: ", "))
 - confidence: a number between 0 and 1 indicating how confident you are
+- anonymizedText: a privacy-preserving rewrite that keeps the emotional gist and broad concern, but removes identifying specifics
 
 If the text is ambiguous, choose the closest sentiment and use a conservative confidence.
-Do NOT repeat or paraphrase any of the input text.
+For anonymizedText:
+- Remove or generalize names, exact locations, employers, schools, organizations, dates, times, ages, contact details, account numbers, addresses, medical/legal/financial identifiers, and uniquely identifying events.
+- Use generic descriptors like "a family member", "a workplace", "a medical issue", or "a recent event" when needed.
+- Do not add advice, diagnosis, explanations, or facts that are not in the input.
+- If a detail could identify a real person, place, organization, or incident, omit it or generalize it.
+Do NOT quote the input or preserve identifying phrases.
 Do NOT include markdown, code fences, or explanatory text.
 """
 

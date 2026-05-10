@@ -1,12 +1,12 @@
 # mic-check
 
-A proof-of-concept iOS app for recording speech, transcribing it on-device, and analyzing sentiment using Apple Intelligence.
+A proof-of-concept iOS app for recording speech, transcribing it on-device, analyzing sentiment, and producing anonymized text using Apple Intelligence.
 
 ## What it does
 
 1. **Record** - Tap to record audio
 2. **Transcribe** - On-device speech recognition converts audio to text (Apple Speech / SFSpeechRecognizer)
-3. **Analyze** - Apple Foundation Models extract sentiment and emotions from the transcript, entirely on-device
+3. **Analyze** - Apple Foundation Models extract sentiment, emotions, confidence, and an anonymized version of the transcript, entirely on-device
 
 ## Tech stack
 
@@ -14,7 +14,7 @@ A proof-of-concept iOS app for recording speech, transcribing it on-device, and 
 - TypeScript
 - `expo-av` — audio recording
 - `expo-speech-recognition` — on-device transcription
-- `@ratley/react-native-apple-foundation-models` — on-device sentiment extraction via Apple Intelligence
+- `@ratley/react-native-apple-foundation-models` — on-device sentiment extraction and anonymization via Apple Intelligence
 
 ## Requirements
 
@@ -71,13 +71,13 @@ There is no automated test suite yet. Start with:
 npm run lint
 ```
 
-For sentiment iteration without recording audio, use the dev-only `Debug -> sentiment` link on the home screen. It opens `/debug`, runs the production sentiment hook, and shows both normalized results and raw model output.
+For sentiment and anonymization iteration without recording audio, use the dev-only `Debug -> sentiment + privacy` link on the home screen. It opens `/debug`, runs the production sentiment hook, and shows normalized results, anonymized text, and raw model output.
 
 For faster prompt checks on macOS, use the Swift CLI:
 
 ```bash
 cd tools/sentiment-cli
-swift run sentiment-cli --raw "I love them, but I'm angry about what happened."
+swift run sentiment-cli --raw "My name is Maya Patel, I work at Northstar Clinic in Denver, and I feel scared."
 ```
 
 See [docs/debug-testing.md](docs/debug-testing.md) for the full test matrix, fixture workflow, and end-to-end device checklist.

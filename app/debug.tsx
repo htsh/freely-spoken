@@ -7,10 +7,10 @@ import { ThemedView } from '@/components/themed-view';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
 
 const FIXTURES = [
-  "I'm so grateful — the surgery went well and I can finally breathe again.",
-  "I keep waking up at 3am with my chest tight. I don't know what to do.",
-  "Whatever. The meeting happened. It was fine.",
-  "I love them so much but I'm so angry I can't even look at them right now.",
+  "My name is Maya Patel, I work at Northstar Clinic in Denver, and after my surgery on March 3 I feel scared and angry.",
+  "I keep waking up at 3am because my brother Aaron owes me $4,800 and our court date in Queens is next Friday.",
+  "Sarah from Cedar Ridge Elementary told everyone about my daughter's diagnosis, and I feel betrayed.",
+  "I love my manager Jordan at Finley Bank, but the performance review on April 12 left me humiliated and confused.",
 ];
 
 export default function DebugScreen() {
@@ -44,12 +44,12 @@ export default function DebugScreen() {
             <Pressable onPress={() => router.back()} hitSlop={12}>
               <ThemedText style={styles.back}>← Back</ThemedText>
             </Pressable>
-            <ThemedText type="title" style={styles.title}>Sentiment Debug</ThemedText>
+            <ThemedText type="title" style={styles.title}>Sentiment + Privacy Debug</ThemedText>
           </View>
 
           <ThemedText style={styles.hint}>
-            Type a transcript and run it through the same sentiment analyzer the app uses.
-            Skips recording and STT — useful for iterating on prompts and the normalization layer.
+            Type a transcript and run it through the same on-device analyzer the app uses.
+            Skips recording and STT so you can inspect sentiment, anonymization, and raw model output.
           </ThemedText>
 
           <TextInput
@@ -87,7 +87,7 @@ export default function DebugScreen() {
                 style={styles.fixtureRow}
                 onPress={() => setText(fixture)}
               >
-                <ThemedText style={styles.fixtureText} numberOfLines={2}>
+                <ThemedText style={styles.fixtureText} numberOfLines={3}>
                   {fixture}
                 </ThemedText>
               </Pressable>
@@ -115,6 +115,10 @@ export default function DebugScreen() {
                 <ThemedText style={styles.resultLine}>
                   <ThemedText style={styles.resultLabel}>emotions: </ThemedText>
                   {result.emotions.length > 0 ? result.emotions.join(', ') : '(none)'}
+                </ThemedText>
+                <ThemedText style={styles.resultLine}>
+                  <ThemedText style={styles.resultLabel}>anonymizedText: </ThemedText>
+                  {result.anonymizedText}
                 </ThemedText>
               </View>
             </>

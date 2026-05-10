@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-iOS-only Expo / React Native PoC that records audio, transcribes it on-device with Apple Speech, and runs sentiment + emotion classification through Apple's on-device Foundation Models LLM. Nothing leaves the device. There is no backend, no Android support, no persistent storage.
+iOS-only Expo / React Native PoC that records audio, transcribes it on-device with Apple Speech, and runs sentiment + emotion classification plus transcript anonymization through Apple's on-device Foundation Models LLM. Nothing leaves the device. There is no backend, no Android support, no persistent storage.
 
 ## Commands
 
@@ -27,18 +27,18 @@ The whole user flow is one screen (`app/index.tsx`) driving an `idle → recordi
 
 1. `useAudioRecorder` (`hooks/use-audio-recorder.ts`) — wraps `expo-av`'s `Audio.Recording`, returns the file URI on stop. Holds the recording in a ref and tears it down on unmount.
 2. `useTranscriber` (`hooks/use-transcriber.ts`) — feeds the recorded URI to `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })` and listens via `useSpeechRecognitionEvent('result' | 'end' | 'error')`. The hook has no return value from `transcribe()` — results arrive asynchronously through events and update hook state.
-3. `useSentimentAnalyzer` (`hooks/use-sentiment-analyzer.ts`) — calls Apple Foundation Models. See below.
+3. `useSentimentAnalyzer` (`hooks/use-sentiment-analyzer.ts`) — calls Apple Foundation Models for sentiment, emotions, confidence, and anonymized text. See below.
 
 The `processing` state covers both transcription and sentiment analysis. Two effects watch the relevant `is*` flags and advance the state machine when each step finishes. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx` that triggers it and another that advances on completion.
 
-### Sentiment analyzer (the non-obvious part)
+### Sentiment analyzer and anonymizer (the non-obvious part)
 
 `useSentimentAnalyzer.analyze()` first checks `getTextModelAvailability()` and throws a readable error if Apple Intelligence is unavailable. It then tries **two strategies in order**:
 
-1. `generateObject()` with a JSON schema for `{ sentiment, emotions, confidence }`.
+1. `generateObject()` with a JSON schema for `{ sentiment, emotions, confidence, anonymizedText }`.
 2. On any failure, falls back to `generateText()` and parses with `extractFirstJSONObject()` — a hand-written brace matcher that tolerates strings, escapes, and surrounding prose from the model.
 
-Both paths funnel through `normalizeSentiment` / `normalizeEmotions` / `normalizeConfidence`. These exist because the on-device 3B model is loose with labels — it returns `"angry"`, `"happy"`, `"calm"`, percentages like `"85%"`, comma-joined emotion strings, etc. The `SENTIMENT_ALIASES` and `EMOTION_ALIASES` maps coerce these to the canonical `SENTIMENTS` / `EMOTIONS` enum values that the UI renders. **When changing prompts or model packages, run real recordings end-to-end** — schema validation alone won't catch normalization regressions.
+Both paths funnel through `normalizeSentiment` / `normalizeEmotions` / `normalizeConfidence` / `normalizeAnonymizedText`. These exist because the on-device 3B model is loose with labels — it returns `"angry"`, `"happy"`, `"calm"`, percentages like `"85%"`, comma-joined emotion strings, etc. The `SENTIMENT_ALIASES` and `EMOTION_ALIASES` maps coerce these to the canonical `SENTIMENTS` / `EMOTIONS` enum values that the UI renders. `normalizeAnonymizedText` intentionally falls back to a generic privacy-safe sentence, never the original transcript, when the model omits the field. **When changing prompts or model packages, run real recordings end-to-end** — schema validation alone won't catch normalization or privacy regressions.
 
 `docs/on-device-ai-approach.md` and `docs/foundation-models-packages.md` capture the rationale for choosing `@ratley/react-native-apple-foundation-models` over the alternatives (`@react-native-ai/apple`, `react-native-apple-llm`, `react-native-apple-intelligence`) and the longer-term server-fallback / Android plan. Read these before swapping the FM package.
 
@@ -46,10 +46,10 @@ Both paths funnel through `normalizeSentiment` / `normalizeEmotions` / `normaliz
 
 Two off-device affordances exist for iterating on the sentiment analyzer without recording on a phone:
 
-- **`/debug` route** (`app/debug.tsx`) — `__DEV__`-gated link on the home screen. Bypasses recording + STT: type a transcript, hit Analyze, and see both the normalized result and the raw model output, with a badge showing whether `generateObject` succeeded or the `generateText` fallback fired. Run it in the iOS 26 Simulator on an Apple Silicon Mac with Apple Intelligence enabled.
+- **`/debug` route** (`app/debug.tsx`) — `__DEV__`-gated link on the home screen. Bypasses recording + STT: type a transcript, hit Analyze, and see the normalized sentiment/emotions, anonymized text, and raw model output, with a badge showing whether `generateObject` succeeded or the `generateText` fallback fired. Run it in the iOS 26 Simulator on an Apple Silicon Mac with Apple Intelligence enabled.
 - **`tools/sentiment-cli/`** — Swift Package executable that calls `FoundationModels` directly on macOS. `swift run sentiment-cli "text"` (or pipe stdin); `--raw` also dumps unstructured `generateText` output. Useful for prompt sweeps over fixture files. The prompt and `Generable` schema are duplicated from `use-sentiment-analyzer.ts` — keep them in sync when changing the production prompt.
 
-The TS-side normalization layer (alias maps, brace-matched JSON extraction) is intentionally **not** mirrored in the Swift CLI — the CLI exists to see what the model emits before that layer.
+The TS-side normalization layer (alias maps, brace-matched JSON extraction, conservative anonymized-text fallback) is intentionally **not** mirrored in the Swift CLI — the CLI exists to see what the model emits before that layer.
 
 ## Conventions
 

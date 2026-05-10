@@ -7,9 +7,9 @@ This project does not have an automated test suite yet. Use the paths below depe
 | Path | Command / entry point | Proves | Does not prove |
 |---|---|---|---|
 | Static check | `npm run lint` | TypeScript/React lint sanity | Runtime native module behavior |
-| Sentiment debug screen | Home screen -> `Debug -> sentiment` in a dev build | Production React hook, availability gate, object/fallback strategy, normalization | Recording, file URIs, Apple Speech transcription |
-| Swift sentiment CLI | `cd tools/sentiment-cli && swift run sentiment-cli "text"` | Foundation Models prompt/schema behavior without rebuilding the app | TypeScript normalization, React state, UI |
-| Full device flow | `npx expo run:ios --device` | Recording -> on-device STT -> sentiment -> UI result | Automated regression coverage |
+| Sentiment debug screen | Home screen -> `Debug -> sentiment + privacy` in a dev build | Production React hook, availability gate, object/fallback strategy, normalization, anonymized text | Recording, file URIs, Apple Speech transcription |
+| Swift sentiment CLI | `cd tools/sentiment-cli && swift run sentiment-cli "text"` | Foundation Models prompt/schema behavior without rebuilding the app, including anonymized text | TypeScript normalization, React state, UI |
+| Full device flow | `npx expo run:ios --device` | Recording -> on-device STT -> sentiment/anonymization -> UI result | Automated regression coverage |
 
 ## Baseline Checks
 
@@ -39,7 +39,7 @@ Use the debug route when you want to test the same React hook used by the app wi
 
    For sentiment-only checks, an iOS 26 simulator on Apple Silicon can be useful if Apple Intelligence / Foundation Models reports available. If the debug screen shows an availability error, use a physical Apple Intelligence-capable device.
 
-2. On the home screen, tap `Debug -> sentiment`.
+2. On the home screen, tap `Debug -> sentiment + privacy`.
 
 3. Paste a transcript or tap a fixture.
 
@@ -47,7 +47,7 @@ Use the debug route when you want to test the same React hook used by the app wi
 
 5. Check both sections:
 
-   - `Normalized`: the values the app will render to users.
+   - `Normalized`: the sentiment values and anonymized text the app will render to users.
    - `Raw model output`: the pre-normalization object/text and the strategy badge.
 
 The strategy badge matters:
@@ -55,7 +55,7 @@ The strategy badge matters:
 - `object`: `generateObject()` succeeded with the schema.
 - `text-fallback`: `generateObject()` failed, so the hook used `generateText()` and parsed JSON out of text output.
 
-When editing `SENTIMENT_PROMPT`, `SENTIMENT_SCHEMA`, `SENTIMENT_ALIASES`, or `EMOTION_ALIASES`, include examples that cover positive, negative, neutral, mixed, ambiguous, and multi-emotion transcripts.
+When editing `SENTIMENT_PROMPT`, `SENTIMENT_SCHEMA`, `SENTIMENT_ALIASES`, `EMOTION_ALIASES`, or anonymization rules, include examples that cover positive, negative, neutral, mixed, ambiguous, and multi-emotion transcripts with names, exact places, organizations, dates, ages, contact details, and medical/legal/financial specifics.
 
 ## Test Raw Foundation Models Output on macOS
 
@@ -71,6 +71,12 @@ Run from `tools/sentiment-cli/`:
 
 ```bash
 swift run sentiment-cli "I'm feeling pretty good today, all things considered."
+```
+
+Use a privacy-heavy sample to inspect anonymization:
+
+```bash
+swift run sentiment-cli "My name is Maya Patel, I work at Northstar Clinic in Denver, and after my surgery on March 3 I feel scared and angry."
 ```
 
 Use stdin for scripts:
@@ -94,7 +100,7 @@ jq -r '.text' fixtures.jsonl | while IFS= read -r line; do
 done
 ```
 
-Important: the CLI does not run TypeScript normalization. If the CLI returns `happy`, `angry`, `85%`, or prose around JSON, confirm the app behavior in `/debug` before deciding whether production behavior is broken.
+Important: the CLI does not run TypeScript normalization. If the CLI returns `happy`, `angry`, `85%`, missing anonymized text, or prose around JSON, confirm the app behavior in `/debug` before deciding whether production behavior is broken.
 
 ## Test the Full Device Flow
 
@@ -125,6 +131,7 @@ Use this path before considering recording, speech recognition, or end-to-end UX
    - The app leaves `recording` after stop.
    - A transcript appears, or a clear transcription error appears.
    - Sentiment and emotions appear for non-empty transcripts.
+   - `Anonymous version` keeps the broad concern and emotion but removes names, exact places, organizations, dates, and other identifying details.
    - `Record Again` resets transcript, sentiment, and errors.
 
 ## Prompt / Schema Change Checklist
@@ -134,7 +141,7 @@ When changing sentiment behavior:
 1. Update `hooks/use-sentiment-analyzer.ts`.
 2. Mirror prompt/schema changes in `tools/sentiment-cli/Sources/sentiment-cli/main.swift`.
 3. Run CLI examples with and without `--raw`.
-4. Run the same examples through `/debug` to verify normalized production behavior.
+4. Run the same examples through `/debug` to verify normalized production behavior and anonymized text.
 5. Run at least one full device recording to catch STT and pipeline regressions.
 6. Run `npm run lint`.
 
@@ -145,5 +152,6 @@ When changing sentiment behavior:
 | `Apple Intelligence not available` | Device/simulator does not expose Foundation Models | OS version, Apple Intelligence setting, hardware eligibility |
 | Debug route works, full flow fails | Recording or STT path problem | Microphone permission, Speech Recognition permission, device language |
 | CLI looks wrong, debug route looks right | Normalization cleaned up loose model output | Alias maps and `normalizeConfidence()` |
+| Anonymous version repeats identifying details | Prompt/schema privacy regression | Debug fixtures, raw output, and `normalizeAnonymizedText()` fallback behavior |
 | Debug route shows `text-fallback` often | `generateObject()` is failing schema generation | Prompt/schema compatibility and raw output |
 | Build fails after dependency/plugin changes | Native project or pods stale | Rerun `npx expo prebuild`; if needed run `pod install` inside generated `ios/` |
