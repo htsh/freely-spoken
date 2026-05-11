@@ -88,6 +88,14 @@ export default function HomeScreen() {
       ? 'Analyzing sentiment and privacy...'
       : 'Processing...';
 
+  const sentimentJSON = sentimentResult
+    ? JSON.stringify({
+      sentiment: sentimentResult.sentiment,
+      emotions: sentimentResult.emotions,
+      confidence: sentimentResult.confidence,
+    }, null, 2)
+    : null;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
@@ -150,22 +158,15 @@ export default function HomeScreen() {
 
             {sentimentResult && (
               <>
-                <ThemedText type="subtitle">Sentiment</ThemedText>
-                <ThemedText style={styles.sentimentValue}>
-                  {sentimentResult.sentiment} ({Math.round(sentimentResult.confidence * 100)}%)
-                </ThemedText>
-
-                <ThemedText type="subtitle" style={styles.emotionsLabel}>Emotions</ThemedText>
-                <View style={styles.emotionTags}>
-                  {sentimentResult.emotions.map((emotion) => (
-                    <View key={emotion} style={styles.tag}>
-                      <ThemedText style={styles.tagText}>{emotion}</ThemedText>
-                    </View>
-                  ))}
+                <ThemedText type="subtitle">Sentiment JSON</ThemedText>
+                <View style={styles.jsonBlock}>
+                  <ThemedText style={styles.jsonText}>
+                    {sentimentJSON}
+                  </ThemedText>
                 </View>
 
                 <ThemedText type="subtitle" style={styles.anonymousLabel}>
-                  Anonymous version
+                  Guarded anonymous version
                 </ThemedText>
                 <ThemedText style={styles.anonymousText}>
                   {sentimentResult.anonymizedText}
@@ -268,14 +269,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 22,
   },
-  sentimentValue: {
-    marginTop: 4,
-    marginBottom: 16,
-    fontSize: 18,
-    textTransform: 'capitalize',
-  },
-  emotionsLabel: {
+  jsonBlock: {
     marginTop: 8,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+  },
+  jsonText: {
+    fontFamily: 'ui-monospace',
+    fontSize: 13,
+    lineHeight: 18,
   },
   anonymousLabel: {
     marginTop: 24,
@@ -283,21 +286,6 @@ const styles = StyleSheet.create({
   anonymousText: {
     marginTop: 8,
     lineHeight: 22,
-  },
-  emotionTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(128, 128, 128, 0.2)',
-  },
-  tagText: {
-    fontSize: 14,
   },
   errorText: {
     color: '#ff3b30',

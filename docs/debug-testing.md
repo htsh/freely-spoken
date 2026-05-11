@@ -130,8 +130,8 @@ Use this path before considering recording, speech recognition, or end-to-end UX
 
    - The app leaves `recording` after stop.
    - A transcript appears, or a clear transcription error appears.
-   - Sentiment and emotions appear for non-empty transcripts.
-   - `Anonymous version` keeps the broad concern and emotion but removes names, exact places, organizations, dates, and other identifying details.
+   - `Sentiment JSON` appears for non-empty transcripts.
+   - `Guarded anonymous version` keeps the broad concern and emotion but removes names, exact places, organizations, dates, and other identifying details.
    - `Record Again` resets transcript, sentiment, and errors.
 
 ## Prompt / Schema Change Checklist
