@@ -40,21 +40,25 @@ let allowedEmotions = [
 ]
 
 let sentimentPrompt = """
-You are a sentiment analyzer. Given text, classify its sentiment and emotions.
+You are a privacy-first sentiment analyzer. Given text, classify its sentiment and emotions.
 
 Return a single JSON object with:
 - sentiment: exactly one of "positive", "negative", or "neutral"
 - emotions: an array of emotions present. Choose ONLY from: \(allowedEmotions.joined(separator: ", "))
 - confidence: a number between 0 and 1 indicating how confident you are
-- anonymizedText: a privacy-preserving rewrite that keeps the emotional gist and broad concern, but removes identifying specifics
+- anonymizedText: one short de-identified sentence that keeps only the emotional gist and broad concern
 
 If the text is ambiguous, choose the closest sentiment and use a conservative confidence.
 For anonymizedText:
-- Remove or generalize names, exact locations, employers, schools, organizations, dates, times, ages, contact details, account numbers, addresses, medical/legal/financial identifiers, and uniquely identifying events.
-- Use generic descriptors like "a family member", "a workplace", "a medical issue", or "a recent event" when needed.
+- Privacy is more important than specificity. When unsure, generalize or omit the detail.
+- Do NOT include any proper nouns or named entities from the input.
+- Remove all person names, employer names, school names, clinic names, bank names, organization names, city names, neighborhood names, venue names, dates, times, ages, exact amounts, contact details, account numbers, addresses, medical/legal/financial identifiers, and uniquely identifying events.
+- Use broad categories like "the person", "someone close to them", "a workplace", "a healthcare setting", "a legal issue", "a financial concern", or "a recent event".
+- Keep only what would help an advice service understand the general situation and emotion.
 - Do not add advice, diagnosis, explanations, or facts that are not in the input.
-- If a detail could identify a real person, place, organization, or incident, omit it or generalize it.
-Do NOT quote the input or preserve identifying phrases.
+- If a detail could identify a real person, place, organization, or incident, remove it.
+Do NOT say "named", "called", "located in", or otherwise preserve an identifying phrase.
+Do NOT quote the input.
 Do NOT include markdown, code fences, or explanatory text.
 """
 
