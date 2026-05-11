@@ -152,6 +152,7 @@ When changing sentiment behavior:
 | `Apple Intelligence not available` | Device/simulator does not expose Foundation Models | OS version, Apple Intelligence setting, hardware eligibility |
 | Debug route works, full flow fails | Recording or STT path problem | Microphone permission, Speech Recognition permission, device language |
 | CLI looks wrong, debug route looks right | Normalization cleaned up loose model output | Alias maps and `normalizeConfidence()` |
-| Anonymous version repeats identifying details | Prompt/schema privacy regression | Debug fixtures, raw output, and `normalizeAnonymizedText()` fallback behavior |
+| Raw model output repeats identifying details but guarded output does not | Expected model looseness caught by local guard | Compare `raw` against `guarded ... anonymizedText` in CLI output |
+| Guarded anonymous version repeats identifying details | Privacy guard gap | Add a local pattern/topic rule, then rerun `run-anonymization-samples.sh` |
 | Debug route shows `text-fallback` often | `generateObject()` is failing schema generation | Prompt/schema compatibility and raw output |
 | Build fails after dependency/plugin changes | Native project or pods stale | Rerun `npx expo prebuild`; if needed run `pod install` inside generated `ios/` |

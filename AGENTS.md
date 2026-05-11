@@ -40,7 +40,7 @@ The main user flow lives in `app/index.tsx` as an `idle -> recording -> processi
 
 The schema includes `{ sentiment, emotions, confidence, anonymizedText }`. `anonymizedText` is intended to preserve the emotional gist and broad concern while removing names, exact locations, organizations, dates, contact details, medical/legal/financial identifiers, and uniquely identifying events.
 
-Both paths normalize via `normalizeSentiment`, `normalizeEmotions`, `normalizeConfidence`, and `normalizeAnonymizedText`. The alias maps are important because the local model can return loose labels such as `happy`, `angry`, percentages, or comma-joined emotion strings. The anonymized-text normalizer deliberately falls back to a generic safe sentence rather than the original transcript if the model omits the field.
+Both paths normalize via `normalizeSentiment`, `normalizeEmotions`, `normalizeConfidence`, and `normalizeAnonymizedText`. The alias maps are important because the local model can return loose labels such as `happy`, `angry`, percentages, or comma-joined emotion strings. The anonymized-text normalizer applies a local privacy guard against the original transcript; if the model output reuses protected terms, obvious identifiers, or too much source wording, it falls back to a generic category-based safe sentence rather than the original transcript.
 
 When changing the prompt, schema, aliases, anonymization rules, or model package, run real examples through the debug tools and the device flow. Schema checks alone do not catch normalization or privacy regressions.
 
@@ -51,7 +51,7 @@ Two dev-only affordances exist for sentiment work:
 - `app/debug.tsx`: a `__DEV__`-gated `/debug` route linked from the home screen. It bypasses recording and STT, calls the production `useSentimentAnalyzer()` hook, and shows normalized sentiment, anonymized text, raw model output, and strategy (`object` or `text-fallback`).
 - `tools/sentiment-cli/`: a Swift Package executable that calls `FoundationModels` directly on macOS. It is useful for prompt sweeps and raw model inspection before TypeScript normalization.
 
-The Swift CLI intentionally duplicates the prompt/schema from `hooks/use-sentiment-analyzer.ts`. Keep `tools/sentiment-cli/Sources/sentiment-cli/main.swift` in sync with the TypeScript hook when changing sentiment or anonymization behavior. The CLI does not mirror the TypeScript normalization, JSON brace-matching layer, or conservative anonymized-text fallback.
+The Swift CLI intentionally duplicates the prompt/schema and anonymized-text guard from `hooks/use-sentiment-analyzer.ts`. Keep `tools/sentiment-cli/Sources/sentiment-cli/main.swift` in sync with the TypeScript hook when changing sentiment or anonymization behavior. The CLI still prints raw model output, then prints guarded anonymized text so privacy failures are easy to spot.
 
 See `docs/debug-testing.md` for exact workflows and what each path proves.
 

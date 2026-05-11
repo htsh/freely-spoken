@@ -9,7 +9,7 @@ samples=(
   "My daughter Emma, who is 11, was diagnosed at Cedar Ridge Pediatrics last Tuesday, and I feel helpless."
   "I live at 48 Maple Street in Queens and my landlord Victor keeps showing up at night, which makes me anxious."
   "My husband Daniel lost his job at Apex Robotics in Austin on April 4, and I am terrified about our mortgage."
-  "I borrowed $7,500 from my sister Priya and now she is threatening to sue me in Cook County next month."
+  "I borrowed \$7,500 from my sister Priya and now she is threatening to sue me in Cook County next month."
   "I am a nurse at St. Agnes Hospital in Baltimore, and I made a medication error on patient MRN 998231."
   "My boss Rachel at Northwind Logistics texted me at 2am and I feel trapped because she controls my visa paperwork."
   "I saw my therapist Dr. Mehta on Friday about my relapse, and I am ashamed that my partner Luis found out."

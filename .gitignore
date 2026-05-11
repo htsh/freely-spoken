@@ -63,3 +63,6 @@ Pods/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Local sentiment CLI sample output
+tools/sentiment-cli/output.txt
