@@ -31,6 +31,22 @@ The whole user flow is one screen (`app/index.tsx`) driving an `idle → recordi
 
 The `processing` state covers both transcription and sentiment analysis. Two effects watch the relevant `is*` flags and advance the state machine when each step finishes. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx` that triggers it and another that advances on completion.
 
+### Planned hosted response direction
+
+The next product direction is two related versions: a Christian version and a Zen version. Both should share the privacy-first listening pipeline: record once, transcribe on-device, analyze/anonymize on-device, send only anonymized text to hosted inference or retrieval, then return one focused response.
+
+Implementation guidance for upcoming hosted lookup work:
+
+- Keep lookup single-turn. Do not add chat memory, thread state, accounts, feeds, or persistent history.
+- Keep shared infrastructure separate from version-specific behavior with an explicit `appVariant: "christian" | "zen"` boundary or equivalent.
+- Use the hosted LLM for relevance/reference selection, not as the source of canonical verse or koan text.
+- Christian-specific behavior should own scripture-oriented prompts, response copy, content constraints, and Bible API lookup after the LLM selects a verse reference.
+- Zen-specific behavior should own Zen-oriented prompts, response copy, content constraints, and koan collection lookup after the LLM selects a koan/reference. The exact Zen response shape is still undecided and needs a short spec before implementation.
+- Provider order should support Gemini Flash free tier first, OpenRouter free models as fallback, immediate fallback on `429`, and bounded retries with jitter for transient errors.
+- Return one focused response plus structured metadata such as source/reference when applicable, text, provider, model, retry count, and fallback-used flag.
+- Optional read-aloud may be added for the fetched verse or koan, but it should consume fetched canonical text rather than provider-generated text.
+- Do not broaden to additional traditions unless a future plan explicitly changes that.
+
 ### Sentiment analyzer and anonymizer (the non-obvious part)
 
 `useSentimentAnalyzer.analyze()` first checks `getTextModelAvailability()` and throws a readable error if Apple Intelligence is unavailable. It then tries **two strategies in order**:

@@ -30,25 +30,30 @@ The main user flow lives in `app/index.tsx` as an `idle → recording → proces
 
 The `processing` state covers both transcription and sentiment analysis. If adding another pipeline step, follow the pattern: a focused hook with result/isLoading/error/action/reset, plus a `useEffect` in `app/index.tsx` that chains to the next step.
 
-### Planned pipeline extension (hosted verse retrieval)
+### Planned pipeline extension (hosted spiritual response retrieval)
 
-The next planned step is a hosted LLM verse lookup after anonymization. Target flow:
+The next planned step is a hosted LLM lookup after anonymization. The product direction is now two related versions: a Christian version and a Zen version. Target flow:
 
-`idle -> recording -> processing (transcribe + anonymize) -> verseLookup -> results`
+`idle -> recording -> processing (transcribe + anonymize) -> responseLookup -> results`
 
 Implementation guidance for upcoming work:
 
-- Add a dedicated hook (for example `hooks/use-verse-lookup.ts`) with `{ result, isLoading, error, lookup, reset }`.
+- Add a dedicated hook (for example `hooks/use-spiritual-response-lookup.ts`) with `{ result, isLoading, error, lookup, reset }`.
 - Only pass anonymized text into hosted inference. Do not send raw transcript.
 - Keep lookup single-turn (no chat memory, no thread state).
+- Keep shared infrastructure separate from version-specific behavior with an explicit `appVariant: "christian" | "zen"` boundary or equivalent.
+- Use the hosted LLM for relevance/reference selection, then fetch canonical content from a trusted source.
+- Christian version: LLM selects a verse reference; app fetches verse text from the Bible API.
+- Zen version: LLM selects a koan/reference; app fetches koan text from the koan collection.
 - Provider order should support fallback:
   1. Primary: Gemini Flash free tier
   2. Fallback: OpenRouter free model(s)
 - On `429`, immediately attempt fallback provider.
 - Add bounded retries with jitter for transient errors (`429`, `5xx`, timeout).
-- Return one verse plus structured metadata (reference, text, provider, model, retry count, fallback-used flag) so UI/debug can show strategy.
+- Return one focused response plus structured metadata (reference/source when applicable, text, provider, model, retry count, fallback-used flag) so UI/debug can show strategy.
+- Optional read-aloud may be added for the fetched verse or koan, but it should consume fetched canonical text rather than provider-generated text.
 
-This is intentionally a tight loop product direction: "speak once, receive one relevant verse".
+This is intentionally a tight loop product direction: "speak once, receive one relevant response". For the Christian version, that response is expected to be scripture-oriented. For the Zen version, the exact response shape is still undecided and should be specified before implementation.
 
 ## Sentiment Analyzer and Anonymizer
 
@@ -77,4 +82,4 @@ See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end
 - `typedRoutes`, `reactCompiler`, and the React Native New Architecture (`newArchEnabled: true`) are enabled in `app.json`.
 - UI should use `ThemedText`, `ThemedView`, `useThemeColor`, and `constants/theme.ts` rather than one-off colors.
 - Read `docs/on-device-ai-approach.md` and `docs/foundation-models-packages.md` before replacing the Foundation Models package or adding fallback architecture.
-- Future optional scope may include additional religious text corpora (for example Hindu, Muslim, Buddhist), but the interaction model should remain one-shot rather than chat.
+- Current product scope is two versions: Christian and Zen. Do not broaden to additional traditions unless a future plan explicitly changes that. The interaction model should remain one-shot rather than chat.

@@ -98,12 +98,22 @@ Early proof of concept. iOS only. No persistent storage, no server, no Android s
 
 ## Next phase (planned)
 
-The next step is a one-shot "speak your problem" flow that keeps privacy-first behavior from the current app:
+The next step is a one-shot "speak your problem" flow that keeps privacy-first behavior from the current app. Product direction is now two related versions: Christian and Zen.
 
 1. Record + on-device transcription
 2. On-device sentiment + anonymization
-3. Send only the anonymized text to a free hosted LLM
-4. Return one relevant Bible verse (with short reference text)
+3. Send only the anonymized text to a free hosted LLM for reference selection
+4. Fetch canonical source text from the active version's trusted source
+5. Return one focused response for the active version
+
+### Planned versions
+
+- **Christian version** — scripture-oriented response. The LLM selects a verse reference, then the app fetches verse text from a Bible API.
+- **Zen version** — Zen-oriented response. The LLM selects a koan/reference, then the app fetches koan text from a koan collection.
+
+Shared infrastructure should stay separate from version-specific prompts, response copy, content sources, and visual direction.
+
+The app may read the fetched verse or koan aloud to the user. If added, read-aloud should use fetched canonical text, not provider-generated text.
 
 ### Planned hosted inference strategy
 
@@ -120,5 +130,6 @@ The next step is a one-shot "speak your problem" flow that keeps privacy-first b
 
 ### Future scope
 
-- Keep core UX as a tight one-time interaction (record -> verse).
-- Later expansion may include other traditions (for example Hindu, Muslim, Buddhist texts), but still as retrieval/selection from a single prompt, not conversational chat.
+- Keep core UX as a tight one-time interaction.
+- Current scope is exactly two versions: Christian and Zen.
+- Do not broaden to additional traditions unless a future plan explicitly changes that.
