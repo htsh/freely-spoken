@@ -43,6 +43,8 @@ Potential free sources for the Zen-side koan collection:
   - The Gateless Gate: `https://en.wikisource.org/wiki/The_Gateless_Gate`
 - **GitHub datasets** — possible developer-friendly seed data if license and provenance are clean.
   - Search terms: `"zen koans dataset"`, `"101 zen stories json"`
+- **AshidaKim 101 Zen Koans index** — possible reference/source candidate for the `101 Zen Stories` corpus, pending license and provenance review.
+  - `https://ashidakim.com/zenkoans/zenindex.html`
 
 Treat these as candidates, not final implementation choices. Before bundling, caching, or fetching koan text from any source, verify license, translation provenance, text structure, and whether the app can legally redistribute or display the content.
 

@@ -49,6 +49,8 @@ Capture product ideas for the next phase so they do not get lost before implemen
   - `https://en.wikisource.org/wiki/The_Gateless_Gate`
 - GitHub seed data:
   - Search `"zen koans dataset"` or `"101 zen stories json"` for machine-readable public-domain koan compilations.
+- AshidaKim 101 Zen Koans index:
+  - `https://ashidakim.com/zenkoans/zenindex.html`
 
 Before implementation, verify licensing, translation provenance, stable identifiers, and whether the source supports app redistribution/display. Prefer sources that can map cleanly from an LLM-selected koan/reference to deterministic fetched text.
 

@@ -62,6 +62,8 @@ Use Sacred Texts or Wikisource as the initial canonical source for Gateless Gate
 
 Do not use Terebess or random GitHub datasets as the first canonical source unless licensing/provenance is reviewed. They remain useful for comparison, alternate translations, and future expansion.
 
+Keep `https://ashidakim.com/zenkoans/zenindex.html` as a possible `101 Zen Stories` reference candidate, but do not treat it as approved canonical app content until license/provenance is reviewed.
+
 Defer `101 Zen Stories` until a separate rights/provenance pass confirms whether the exact text can be displayed in the app.
 
 ## Test Plan
