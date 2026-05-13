@@ -39,6 +39,7 @@ Potential free sources for the Zen-side koan collection:
 - **Internet Sacred Text Archive** — useful for older public-domain translations and plain HTML source material.
   - Zen Buddhism index: `https://sacred-texts.com/bud/zen/index.htm`
   - The Gateless Gate, Nyogen Senzaki translation: `https://sacred-texts.com/bud/glg/index.htm`
+  - Planned primary source for Gateless Gate canonical text and occasional interpretation/commentary, with interpretation kept separate from koan text.
 - **Wikisource** — useful when the text/license status is clearly public domain or compatible with reuse.
   - The Gateless Gate: `https://en.wikisource.org/wiki/The_Gateless_Gate`
 - **GitHub datasets** — possible developer-friendly seed data if license and provenance are clean.

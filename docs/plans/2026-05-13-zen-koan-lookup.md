@@ -9,6 +9,7 @@ The MVP corpus should be **The Gateless Gate / Mumonkan**, not `101 Zen Stories`
 Chosen defaults:
 
 - Corpus: `The Gateless Gate`, 49 cases.
+- Primary source: `https://sacred-texts.com/bud/glg/index.htm`
 - Backend: FastAPI on VPS owns full lookup.
 - Storage: Mongo stores canonical koan records and metadata.
 - Result: koan text plus short reason.
@@ -41,6 +42,7 @@ Create a Zen lookup service with these conceptual pieces:
   - `sourceUrl`: Sacred Texts or Wikisource URL
   - `translator`: Nyogen Senzaki / Paul Reps where applicable
   - `licenseNote`: short provenance/license note
+  - `interpretation`: optional stored interpretation/commentary from the approved source, clearly separated from canonical koan text
   - `themes`: curated tags such as `attachment`, `fear`, `ego`, `uncertainty`, `grief`
   - `summary`: short internal retrieval summary, not shown as canonical text
 
@@ -58,7 +60,11 @@ This is "RAG-like" but intentionally lighter than vector RAG. With only 49 koans
 
 ## Source Strategy
 
-Use Sacred Texts or Wikisource as the initial canonical source for Gateless Gate.
+Use Sacred Texts as the primary initial source for Gateless Gate:
+
+- `https://sacred-texts.com/bud/glg/index.htm`
+
+Use its interpretation/commentary material sometimes, but keep it explicitly separate from the canonical koan text in storage, API responses, and UI labels. Wikisource remains a useful cross-check/fallback source for stable case links and public-domain status.
 
 Do not use Terebess or random GitHub datasets as the first canonical source unless licensing/provenance is reviewed. They remain useful for comparison, alternate translations, and future expansion.
 

@@ -44,7 +44,7 @@ Capture product ideas for the next phase so they do not get lost before implemen
   - `https://terebess.hu/english/101.html`
 - Internet Sacred Text Archive:
   - `https://sacred-texts.com/bud/zen/index.htm`
-  - `https://sacred-texts.com/bud/glg/index.htm`
+  - `https://sacred-texts.com/bud/glg/index.htm` — planned Gateless Gate source for canonical text and occasional interpretation/commentary.
 - Wikisource:
   - `https://en.wikisource.org/wiki/The_Gateless_Gate`
 - GitHub seed data:
@@ -53,6 +53,7 @@ Capture product ideas for the next phase so they do not get lost before implemen
   - `https://ashidakim.com/zenkoans/zenindex.html`
 
 Before implementation, verify licensing, translation provenance, stable identifiers, and whether the source supports app redistribution/display. Prefer sources that can map cleanly from an LLM-selected koan/reference to deterministic fetched text.
+Keep interpretation/commentary fields separate from canonical koan text so the UI can label them correctly.
 
 ## Product Guardrails
 
