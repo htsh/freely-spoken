@@ -29,7 +29,7 @@ class LookupRequest:
     anonymized_text: str
     sentiment: str
     emotions: List[str]
-    confidence: str
+    confidence: float
     provider: str = "gemini"
     fallback: bool = True
 

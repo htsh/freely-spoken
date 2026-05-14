@@ -76,7 +76,7 @@ async def run(
                 anonymized_text=result.anonymizedText,
                 sentiment=result.sentiment,
                 emotions=result.emotions,
-                confidence=str(result.confidence),
+                confidence=result.confidence,
                 provider=provider,
                 fallback=fallback,
             )
