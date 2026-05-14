@@ -15,6 +15,7 @@ class LookupResult:
     provider: str
     model: str
     retry_count: int = 0
+    fallback_used: bool = False
 
 
 @dataclass

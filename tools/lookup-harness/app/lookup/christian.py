@@ -1,8 +1,11 @@
 import json
 import re
 
+import httpx
+
 from app.lookup.base import LookupAdapter, LookupRequest, LookupResult, Reference
 from app.providers.gemini import GeminiError, generate as gemini_generate
+from app.providers.openrouter import OpenRouterError, generate as openrouter_generate
 
 REF_PATTERN = re.compile(r"^[1-3]?\s?[A-Za-z]+\s\d+:\d+(-\d+)?$")
 
@@ -38,12 +41,36 @@ class ChristianAdapter:
             f"Confidence: {req.confidence}"
         )
 
+        provider = "gemini"
+        model = "gemini-2.0-flash"
+        fallback_used = False
+        retry_count = 0
+
         try:
             raw_text, retry_count = await gemini_generate(
                 CHRISTIAN_SYSTEM_PROMPT, user_prompt
             )
-        except GeminiError:
-            raise
+        except GeminiError as e:
+            cause = getattr(e, "__cause__", None)
+            if (
+                isinstance(cause, httpx.HTTPStatusError)
+                and cause.response.status_code == 429
+            ):
+                try:
+                    raw_text = await openrouter_generate(
+                        CHRISTIAN_SYSTEM_PROMPT, user_prompt
+                    )
+                    provider = "openrouter"
+                    model = "openrouter/free"
+                    fallback_used = True
+                    retry_count = 0
+                except OpenRouterError as oe:
+                    raise GeminiError(
+                        "Gemini rate-limited (3 retries), "
+                        f"OpenRouter also failed: {oe}"
+                    ) from oe
+            else:
+                raise
 
         try:
             data = json.loads(raw_text)
@@ -74,9 +101,10 @@ class ChristianAdapter:
         return LookupResult(
             primary=primary,
             alternates=alternates,
-            provider="gemini",
-            model="gemini-2.0-flash",
+            provider=provider,
+            model=model,
             retry_count=retry_count,
+            fallback_used=fallback_used,
         )
 
     def _make_reference(self, data: dict, label: str) -> Reference:

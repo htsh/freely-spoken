@@ -144,6 +144,11 @@
     {% if lookup_result %}
     <div class="section">
       <h3>Verse References</h3>
+      {% if lookup_result.fallback_used %}
+      <p class="muted">
+        <strong>OpenRouter fallback</strong> — Gemini rate-limited (429)
+      </p>
+      {% endif %}
       <p><strong>Primary:</strong> {{ lookup_result.primary.ref }}</p>
       <p>{{ lookup_result.primary.shortReason }}</p>
 
