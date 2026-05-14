@@ -8,6 +8,16 @@ from app.providers.gemini import GeminiError, generate as gemini_generate
 from app.providers.openrouter import OpenRouterError, generate as openrouter_generate
 
 REF_PATTERN = re.compile(r"^[1-3]?\s?[A-Za-z]+\s\d+:\d+(-\d+)?$")
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown code fences and return the inner JSON string."""
+    text = text.strip()
+    match = _JSON_FENCE_RE.search(text)
+    if match:
+        return match.group(1).strip()
+    return text
 
 CHRISTIAN_SYSTEM_PROMPT = """\
 You are a Christian scripture reference selector. Given a person's anonymized emotional situation, select the single most relevant Bible verse reference that would offer comfort, guidance, or perspective, plus two strong alternates.
@@ -73,10 +83,10 @@ class ChristianAdapter:
                 raise
 
         try:
-            data = json.loads(raw_text)
+            data = json.loads(_extract_json(raw_text))
         except json.JSONDecodeError as e:
             raise GeminiError(
-                f"Invalid JSON from Gemini: {e}\nText: {raw_text[:500]}"
+                f"Invalid JSON from provider: {e}\nText: {raw_text[:500]}"
             ) from e
 
         if "primary" not in data or "alternates" not in data:
