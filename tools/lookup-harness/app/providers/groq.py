@@ -47,4 +47,9 @@ async def generate(system_prompt: str, user_prompt: str) -> tuple[str, int]:
             f"Unexpected Groq response format: {data}"
         ) from e
 
+    if text is None or not text.strip():
+        raise GroqError(
+            f"Groq returned empty/null content. Full response: {data}"
+        )
+
     return text, 0

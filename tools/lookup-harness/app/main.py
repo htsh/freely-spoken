@@ -12,6 +12,8 @@ from app.lookup.base import LookupRequest
 from app.lookup.christian import ChristianAdapter
 from app.lookup.stoic import StoicAdapter
 from app.providers.gemini import GeminiError
+from app.providers.openrouter import OpenRouterError
+from app.providers.groq import GroqError
 
 ADAPTERS = {
     "christian": ChristianAdapter(),
@@ -80,7 +82,7 @@ async def run(
             )
             try:
                 lookup_result = await adapter.select(lookup_req)
-            except GeminiError as e:
+            except (GeminiError, OpenRouterError, GroqError) as e:
                 lookup_error = str(e)
             except Exception as e:
                 lookup_error = f"Unexpected lookup error: {e}"

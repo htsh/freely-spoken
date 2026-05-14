@@ -77,12 +77,31 @@ class ChristianAdapter:
         last_error = None
         for name in provider_order:
             label, model, generate_func = PROVIDERS[name]
+            print(f"[christian] Trying provider: {label} ({model})")
             try:
                 raw_text, retry_count = await generate_func(
                     CHRISTIAN_SYSTEM_PROMPT, user_prompt
                 )
+                print(
+                    f"[christian] {label} raw response "
+                    f"(retry_count={retry_count}): {raw_text[:200]!r}"
+                )
 
-                data = json.loads(_extract_json(raw_text))
+                stripped = _extract_json(raw_text)
+                if not stripped:
+                    raise GeminiError(
+                        f"Provider {label} returned empty response. "
+                        f"Raw: {raw_text[:200]!r}"
+                    )
+
+                try:
+                    data = json.loads(stripped)
+                except json.JSONDecodeError as e:
+                    raise GeminiError(
+                        f"Invalid JSON from {label}: {e}\n"
+                        f"Stripped: {stripped[:500]!r}\n"
+                        f"Original: {raw_text[:500]!r}"
+                    ) from e
 
                 if "primary" not in data or "alternates" not in data:
                     raise GeminiError(
@@ -112,6 +131,7 @@ class ChristianAdapter:
                     fallback_used=(name != req.provider),
                 )
             except Exception as e:
+                print(f"[christian] {label} failed: {type(e).__name__}: {e}")
                 last_error = e
                 if not _is_retryable(e) or not req.fallback:
                     raise

@@ -72,6 +72,11 @@ async def _generate_once(
             f"Unexpected Gemini response format: {data}"
         ) from e
 
+    if text is None or not text.strip():
+        raise GeminiError(
+            f"Gemini returned empty/null content. Full response: {data}"
+        )
+
     return text
 
 

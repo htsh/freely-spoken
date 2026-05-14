@@ -51,4 +51,9 @@ async def generate(system_prompt: str, user_prompt: str) -> tuple[str, int]:
             f"Unexpected OpenRouter response format: {data}"
         ) from e
 
+    if text is None or not text.strip():
+        raise OpenRouterError(
+            f"OpenRouter returned empty/null content. Full response: {data}"
+        )
+
     return text, 0
