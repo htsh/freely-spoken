@@ -44,7 +44,10 @@ async def run(
     sample_id: str = Form(""),
     text: str = Form(""),
     variant: str = Form("christian"),
+    provider: str = Form("gemini"),
+    fallback_raw: str = Form(""),
 ):
+    fallback = fallback_raw.lower() in ("true", "on", "1", "yes")
     samples = load_samples()
     sample_map = {s["id"]: s["text"] for s in samples}
 
@@ -72,6 +75,8 @@ async def run(
                 sentiment=result.sentiment,
                 emotions=result.emotions,
                 confidence=str(result.confidence),
+                provider=provider,
+                fallback=fallback,
             )
             try:
                 lookup_result = await adapter.select(lookup_req)
@@ -87,6 +92,8 @@ async def run(
             "input_text": input_text,
             "result": result,
             "variant": variant,
+            "provider": provider,
+            "fallback": fallback,
             "error": error,
             "lookup_result": lookup_result,
             "lookup_error": lookup_error,

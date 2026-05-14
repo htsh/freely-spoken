@@ -95,7 +95,7 @@
   <body>
     <a href="/" class="back">← Back to samples</a>
     <h1>Result</h1>
-    <p class="subtitle">Variant: {{ variant }}</p>
+    <p class="subtitle">Variant: {{ variant }} | Provider: {{ provider }}{% if fallback %} (fallback on){% endif %}</p>
 
     {% if error %}
     <div class="error"><strong>Error:</strong> {{ error }}</div>
@@ -146,7 +146,7 @@
       <h3>Verse References</h3>
       {% if lookup_result.fallback_used %}
       <p class="muted">
-        <strong>OpenRouter fallback</strong> — Gemini rate-limited (429)
+        <strong>Fallback used</strong> — switched to {{ lookup_result.provider }} ({{ lookup_result.model }})
       </p>
       {% endif %}
       <p><strong>Primary:</strong> {{ lookup_result.primary.ref }}</p>

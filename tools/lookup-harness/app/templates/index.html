@@ -74,6 +74,18 @@
         <option value="stoic" disabled>Stoic — catalog not yet seeded</option>
       </select>
 
+      <label for="provider">LLM Provider</label>
+      <select name="provider" id="provider">
+        <option value="gemini" selected>Gemini Flash</option>
+        <option value="openrouter">OpenRouter Free</option>
+        <option value="groq">Groq Llama 3.1 8B</option>
+      </select>
+
+      <label style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
+        <input type="checkbox" name="fallback" value="true" checked style="width: auto;" />
+        Enable fallback on 429 / timeout
+      </label>
+
       <label for="sample_id">Sample</label>
       <select name="sample_id" id="sample_id">
         <option value="">-- Select a sample or enter text below --</option>

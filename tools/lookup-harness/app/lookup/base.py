@@ -24,6 +24,8 @@ class LookupRequest:
     sentiment: str
     emotions: List[str]
     confidence: str
+    provider: str = "gemini"
+    fallback: bool = True
 
 
 class LookupAdapter(Protocol):

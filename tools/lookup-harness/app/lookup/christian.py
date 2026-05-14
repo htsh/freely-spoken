@@ -6,9 +6,16 @@ import httpx
 from app.lookup.base import LookupAdapter, LookupRequest, LookupResult, Reference
 from app.providers.gemini import GeminiError, generate as gemini_generate
 from app.providers.openrouter import OpenRouterError, generate as openrouter_generate
+from app.providers.groq import GroqError, generate as groq_generate
 
 REF_PATTERN = re.compile(r"^[1-3]?\s?[A-Za-z]+\s\d+:\d+(-\d+)?$")
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+PROVIDERS = {
+    "gemini": ("gemini", "gemini-2.0-flash", gemini_generate),
+    "openrouter": ("openrouter", "openrouter/free", openrouter_generate),
+    "groq": ("groq", "llama-3.1-8b-instant", groq_generate),
+}
 
 
 def _extract_json(text: str) -> str:
@@ -18,6 +25,16 @@ def _extract_json(text: str) -> str:
     if match:
         return match.group(1).strip()
     return text
+
+
+def _is_retryable(error: Exception) -> bool:
+    cause = getattr(error, "__cause__", None)
+    if isinstance(cause, httpx.HTTPStatusError):
+        return cause.response.status_code in (429, 500, 502, 503, 504)
+    if isinstance(cause, (httpx.TimeoutException, httpx.ConnectError)):
+        return True
+    return False
+
 
 CHRISTIAN_SYSTEM_PROMPT = """\
 You are a Christian scripture reference selector. Given a person's anonymized emotional situation, select the single most relevant Bible verse reference that would offer comfort, guidance, or perspective, plus two strong alternates.
@@ -51,71 +68,55 @@ class ChristianAdapter:
             f"Confidence: {req.confidence}"
         )
 
-        provider = "gemini"
-        model = "gemini-2.0-flash"
-        fallback_used = False
-        retry_count = 0
+        provider_order = [req.provider]
+        if req.fallback:
+            for name in PROVIDERS:
+                if name != req.provider:
+                    provider_order.append(name)
 
-        try:
-            raw_text, retry_count = await gemini_generate(
-                CHRISTIAN_SYSTEM_PROMPT, user_prompt
-            )
-        except GeminiError as e:
-            cause = getattr(e, "__cause__", None)
-            if (
-                isinstance(cause, httpx.HTTPStatusError)
-                and cause.response.status_code == 429
-            ):
-                try:
-                    raw_text = await openrouter_generate(
-                        CHRISTIAN_SYSTEM_PROMPT, user_prompt
-                    )
-                    provider = "openrouter"
-                    model = "openrouter/free"
-                    fallback_used = True
-                    retry_count = 0
-                except OpenRouterError as oe:
+        last_error = None
+        for name in provider_order:
+            label, model, generate_func = PROVIDERS[name]
+            try:
+                raw_text, retry_count = await generate_func(
+                    CHRISTIAN_SYSTEM_PROMPT, user_prompt
+                )
+
+                data = json.loads(_extract_json(raw_text))
+
+                if "primary" not in data or "alternates" not in data:
                     raise GeminiError(
-                        "Gemini rate-limited (3 retries), "
-                        f"OpenRouter also failed: {oe}"
-                    ) from oe
-            else:
-                raise
+                        f"Missing primary or alternates in response: {data}"
+                    )
 
-        try:
-            data = json.loads(_extract_json(raw_text))
-        except json.JSONDecodeError as e:
-            raise GeminiError(
-                f"Invalid JSON from provider: {e}\nText: {raw_text[:500]}"
-            ) from e
+                primary_data = data["primary"]
+                alternates_data = data["alternates"]
 
-        if "primary" not in data or "alternates" not in data:
-            raise GeminiError(
-                f"Missing primary or alternates in response: {data}"
-            )
+                if not isinstance(alternates_data, list) or len(alternates_data) != 2:
+                    raise GeminiError(
+                        f"Expected exactly 2 alternates, got: {alternates_data}"
+                    )
 
-        primary_data = data["primary"]
-        alternates_data = data["alternates"]
+                primary = self._make_reference(primary_data, "primary")
+                alternates = [
+                    self._make_reference(a, f"alternate[{i}]")
+                    for i, a in enumerate(alternates_data)
+                ]
 
-        if not isinstance(alternates_data, list) or len(alternates_data) != 2:
-            raise GeminiError(
-                f"Expected exactly 2 alternates, got: {alternates_data}"
-            )
+                return LookupResult(
+                    primary=primary,
+                    alternates=alternates,
+                    provider=label,
+                    model=model,
+                    retry_count=retry_count,
+                    fallback_used=(name != req.provider),
+                )
+            except Exception as e:
+                last_error = e
+                if not _is_retryable(e) or not req.fallback:
+                    raise
 
-        primary = self._make_reference(primary_data, "primary")
-        alternates = [
-            self._make_reference(a, f"alternate[{i}]")
-            for i, a in enumerate(alternates_data)
-        ]
-
-        return LookupResult(
-            primary=primary,
-            alternates=alternates,
-            provider=provider,
-            model=model,
-            retry_count=retry_count,
-            fallback_used=fallback_used,
-        )
+        raise GeminiError(f"All providers failed. Last error: {last_error}")
 
     def _make_reference(self, data: dict, label: str) -> Reference:
         if "ref" not in data or "shortReason" not in data:
