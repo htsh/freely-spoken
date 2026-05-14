@@ -12,6 +12,12 @@ from app.providers.groq import GroqError, generate as groq_generate
 
 REF_PATTERN = re.compile(r"^[1-3]?\s?[A-Za-z]+\s\d+:\d+(-\d+)?$")
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+# Catches obvious cases where the model dumps a long scripture-style quotation
+# into shortReason. Not foolproof — three sentences is the harder cap.
+_SCRIPTURE_HINTS = re.compile(
+    r'"[^"]{120,}"|saith the LORD|verily I say|thus says the Lord',
+    re.IGNORECASE,
+)
 
 PROVIDERS = {
     "gemini": ("gemini", "gemini-2.0-flash", gemini_generate),
@@ -215,6 +221,12 @@ class ChristianAdapter:
         if len(sentences) < 1 or len(sentences) > 3:
             raise GeminiError(
                 f"shortReason must be 1-3 sentences in {label}: "
+                f"{short_reason}"
+            )
+
+        if _SCRIPTURE_HINTS.search(short_reason):
+            raise GeminiError(
+                f"shortReason appears to contain scripture text in {label}: "
                 f"{short_reason}"
             )
 
