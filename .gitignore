@@ -66,3 +66,9 @@ Pods/
 
 # Local sentiment CLI sample output
 tools/sentiment-cli/output.txt
+
+# Local agent tooling (per-developer, not project state)
+.claude/
+.codex/
+.opencode/
+.pi/

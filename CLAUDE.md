@@ -25,27 +25,34 @@ This app **cannot run in Expo Go** — it depends on three native modules (`expo
 
 The whole user flow is one screen (`app/index.tsx`) driving an `idle → recording → processing → results` state machine. Each step is a hook that owns its own state; `index.tsx` only wires them together via two `useEffect`s that chain the pipeline:
 
-1. `useAudioRecorder` (`hooks/use-audio-recorder.ts`) — wraps `expo-av`'s `Audio.Recording`, returns the file URI on stop. Holds the recording in a ref and tears it down on unmount.
-2. `useTranscriber` (`hooks/use-transcriber.ts`) — feeds the recorded URI to `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })` and listens via `useSpeechRecognitionEvent('result' | 'end' | 'error')`. The hook has no return value from `transcribe()` — results arrive asynchronously through events and update hook state.
-3. `useSentimentAnalyzer` (`hooks/use-sentiment-analyzer.ts`) — calls Apple Foundation Models for sentiment, emotions, confidence, and anonymized text. See below.
+1. `useAudioRecorder` (`hooks/use-audio-recorder.ts`) — wraps `expo-av`'s `Audio.Recording`, returns `{ duration, startRecording, stopRecording }`. Holds the recording in a ref and tears it down on unmount.
+2. `useTranscriber` (`hooks/use-transcriber.ts`) — feeds the recorded URI to `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })` and listens via `useSpeechRecognitionEvent('result' | 'end' | 'error')`. Returns `{ transcript, isTranscribing, error, transcribe, reset }`. The hook has no return value from `transcribe()` — results arrive asynchronously through events and update hook state.
+3. `useSentimentAnalyzer` (`hooks/use-sentiment-analyzer.ts`) — calls Apple Foundation Models for sentiment, emotions, confidence, and anonymized text. Returns `{ result, raw, isAnalyzing, error, analyze, reset }`. The `raw` field (`{ strategy: 'object' | 'text-fallback', value: string }`) captures pre-normalization output and the generation path taken — used by the debug screen. See below.
 
 The `processing` state covers both transcription and sentiment analysis. Two effects watch the relevant `is*` flags and advance the state machine when each step finishes. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx` that triggers it and another that advances on completion.
 
 ### Planned hosted response direction
 
-The next product direction is two related versions: a Christian version and a Zen version. Both should share the privacy-first listening pipeline: record once, transcribe on-device, analyze/anonymize on-device, send only anonymized text to hosted inference or retrieval, then return one focused response.
+The next product direction is **three ordered versions**, each sharing the privacy-first pipeline (record → transcribe → analyze/anonymize on device; only anonymized text leaves the device) and differing only in the response layer:
+
+1. **Christian (v1)** — first commit. LLM selects a Bible verse reference; app fetches canonical verse text from a Bible API.
+2. **Stoic (v2)** — second commit. LLM selects a passage ID from a curated Stoic catalog (Epictetus *Enchiridion* + Marcus Aurelius *Meditations*); backend returns stored canonical text. Catalog curation and response framing are governed by `docs/stoic-curation-rubric.md` — the "Stoic but not bro-Stoic" rules are load-bearing for this version's tone.
+3. **Open slot (v3)** — Zen koans are no longer the committed v3. Top concrete-short-passage candidates are listed in `docs/other_wisdom_sources.md` (Dhammapada, Tao Te Ching, Pirkei Avot, Analects). Zen remains a candidate only if reshaped from koans to a more concrete form.
+
+The product shape v1 and v2 are pulling toward is **"short, concrete passage."** This is a provisional criterion — validate it against real responses before treating it as decided.
 
 Implementation guidance for upcoming hosted lookup work:
 
 - Keep lookup single-turn. Do not add chat memory, thread state, accounts, feeds, or persistent history.
-- Keep shared infrastructure separate from version-specific behavior with an explicit `appVariant: "christian" | "zen"` boundary or equivalent.
-- Use the hosted LLM for relevance/reference selection, not as the source of canonical verse or koan text.
-- Christian-specific behavior should own scripture-oriented prompts, response copy, content constraints, and Bible API lookup after the LLM selects a verse reference.
-- Zen-specific behavior should own Zen-oriented prompts, response copy, content constraints, and koan collection lookup after the LLM selects a koan/reference. The exact Zen response shape is still undecided and needs a short spec before implementation.
-- Provider order should support Gemini Flash free tier first, OpenRouter free models as fallback, immediate fallback on `429`, and bounded retries with jitter for transient errors.
-- Return one focused response plus structured metadata such as source/reference when applicable, text, provider, model, retry count, and fallback-used flag.
-- Optional read-aloud may be added for the fetched verse or koan, but it should consume fetched canonical text rather than provider-generated text.
+- Keep shared infrastructure separate from version-specific behavior with an explicit `appVariant: "christian" | "stoic" | ...` boundary or equivalent.
+- Use the hosted LLM for relevance/reference selection, not as the source of canonical passage text.
+- Version-specific layers own their prompts, response copy, content constraints, and canonical-text source (Bible API for Christian, stored catalog for Stoic+).
+- Provider order: Gemini Flash free tier first, OpenRouter free models as fallback, immediate fallback on `429`, bounded retries with jitter for transient errors.
+- Return one focused response plus structured metadata: source/reference, text, provider, model, retry count, fallback-used flag.
+- Optional read-aloud may be added for fetched canonical text, never provider-generated text.
 - Do not broaden to additional traditions unless a future plan explicitly changes that.
+
+Before code on this lands, see `docs/plans/2026-05-13-lookup-harness-plan.md` — a Mac-local web app prototype of the production lookup backend. It exercises the text half of the pipeline (sentiment → LLM passage selection) without device recording, and is the intended place to iterate selection prompts before phone-side implementation.
 
 ### Sentiment analyzer and anonymizer (the non-obvious part)
 
@@ -64,8 +71,11 @@ Two off-device affordances exist for iterating on the sentiment analyzer without
 
 - **`/debug` route** (`app/debug.tsx`) — `__DEV__`-gated link on the home screen. Bypasses recording + STT: type a transcript, hit Analyze, and see the normalized sentiment/emotions, anonymized text, and raw model output, with a badge showing whether `generateObject` succeeded or the `generateText` fallback fired. Run it in the iOS 26 Simulator on an Apple Silicon Mac with Apple Intelligence enabled.
 - **`tools/sentiment-cli/`** — Swift Package executable that calls `FoundationModels` directly on macOS. `swift run sentiment-cli "text"` (or pipe stdin); `--raw` also dumps unstructured `generateText` output. Useful for prompt sweeps over fixture files. The prompt and `Generable` schema are duplicated from `use-sentiment-analyzer.ts` — keep them in sync when changing the production prompt.
+- **`tools/sentiment-cli/run-anonymization-samples.sh`** — runs 20 privacy-heavy samples through the Swift CLI with `--raw`. Use this to catch privacy guard regressions after changing anonymization rules.
 
 The Swift CLI mirrors the anonymized-text guard and prints both raw model output and guarded anonymized text. Keep the CLI and TypeScript guard rules in sync when changing privacy behavior.
+
+See `docs/debug-testing.md` for the full test matrix, fixture workflows, end-to-end device checklist, and the prompt/schema change checklist (the 5-step sequence to follow when editing `SENTIMENT_PROMPT`, `SENTIMENT_SCHEMA`, aliases, or anonymization rules).
 
 ## Conventions
 
