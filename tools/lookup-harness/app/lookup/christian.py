@@ -1,9 +1,11 @@
+import asyncio
 import json
 import re
 
 import httpx
 
 from app.lookup.base import LookupAdapter, LookupRequest, LookupResult, Reference
+from app.lookup.bible_api import BibleApiError, fetch_verse
 from app.providers.gemini import GeminiError, generate as gemini_generate
 from app.providers.openrouter import OpenRouterError, generate as openrouter_generate
 from app.providers.groq import GroqError, generate as groq_generate
@@ -19,12 +21,45 @@ PROVIDERS = {
 
 
 def _extract_json(text: str) -> str:
-    """Strip markdown code fences and return the inner JSON string."""
+    """Strip markdown code fences and preamble text; return the inner JSON object."""
     text = text.strip()
     match = _JSON_FENCE_RE.search(text)
     if match:
-        return match.group(1).strip()
-    return text
+        text = match.group(1).strip()
+
+    # Find first JSON object/array in the text, accounting for nested braces
+    # and braces inside strings.
+    start = text.find("{")
+    if start == -1:
+        start = text.find("[")
+    if start == -1:
+        return text  # No JSON structure found
+
+    open_char = text[start]
+    close_char = "}" if open_char == "{" else "]"
+    depth = 0
+    in_string = False
+    escape = False
+
+    for i, ch in enumerate(text[start:], start=start):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"' and not escape:
+            in_string = not in_string
+            continue
+        if not in_string:
+            if ch == open_char:
+                depth += 1
+            elif ch == close_char:
+                depth -= 1
+                if depth == 0:
+                    return text[start : i + 1]
+
+    return text[start:]
 
 
 def _is_retryable(error: Exception) -> bool:
@@ -122,6 +157,8 @@ class ChristianAdapter:
                     for i, a in enumerate(alternates_data)
                 ]
 
+                await self._enrich_with_text([primary, *alternates])
+
                 return LookupResult(
                     primary=primary,
                     alternates=alternates,
@@ -137,6 +174,27 @@ class ChristianAdapter:
                     raise
 
         raise GeminiError(f"All providers failed. Last error: {last_error}")
+
+    async def _enrich_with_text(self, references: list[Reference]) -> None:
+        """Fetch canonical verse text in parallel; mutate references in place.
+
+        Per-ref errors are attached to that Reference and never raised — the
+        LLM selection is still useful even if bible-api is rate-limited or down.
+        """
+        results = await asyncio.gather(
+            *(fetch_verse(r.ref) for r in references),
+            return_exceptions=True,
+        )
+        for ref, outcome in zip(references, results):
+            if isinstance(outcome, BibleApiError):
+                ref.text_error = str(outcome)
+                print(f"[christian] verse fetch failed for {ref.ref!r}: {outcome}")
+            elif isinstance(outcome, Exception):
+                ref.text_error = f"Unexpected: {type(outcome).__name__}: {outcome}"
+                print(f"[christian] verse fetch crashed for {ref.ref!r}: {outcome}")
+            else:
+                ref.text = outcome.text
+                ref.translation = outcome.translation_name
 
     def _make_reference(self, data: dict, label: str) -> Reference:
         if "ref" not in data or "shortReason" not in data:

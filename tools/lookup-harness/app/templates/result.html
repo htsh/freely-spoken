@@ -90,6 +90,26 @@
         color: #888;
         font-size: 0.85em;
       }
+      .verse-text {
+        margin: 0.4em 0 0.2em 0;
+        padding-left: 12px;
+        border-left: 3px solid #cfd8dc;
+        color: #222;
+        font-style: italic;
+      }
+      .verse-meta {
+        color: #888;
+        font-size: 0.78em;
+        margin: 0.2em 0 0.8em 0;
+      }
+      .verse-error {
+        margin: 0.2em 0 0.8em 0;
+        padding: 6px 10px;
+        background: #fff3cd;
+        color: #856404;
+        border-radius: 4px;
+        font-size: 0.82em;
+      }
     </style>
   </head>
   <body>
@@ -154,12 +174,24 @@
       </p>
       {% endif %}
       <p><strong>Primary:</strong> {{ lookup_result.primary.ref }}</p>
+      {% if lookup_result.primary.text %}
+      <p class="verse-text">{{ lookup_result.primary.text }}</p>
+      <p class="verse-meta">{{ lookup_result.primary.translation }}</p>
+      {% elif lookup_result.primary.text_error %}
+      <p class="verse-error">Verse fetch failed: {{ lookup_result.primary.text_error }}</p>
+      {% endif %}
       <p>{{ lookup_result.primary.shortReason }}</p>
 
       {% if lookup_result.alternates %}
       <p class="muted">Alternates:</p>
       {% for alt in lookup_result.alternates %}
       <p><strong>{{ alt.ref }}</strong> — {{ alt.shortReason }}</p>
+      {% if alt.text %}
+      <p class="verse-text">{{ alt.text }}</p>
+      <p class="verse-meta">{{ alt.translation }}</p>
+      {% elif alt.text_error %}
+      <p class="verse-error">Verse fetch failed: {{ alt.text_error }}</p>
+      {% endif %}
       {% endfor %} {% endif %}
     </div>
     {% endif %} {% if result.raw %}

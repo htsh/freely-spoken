@@ -2,9 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+`AGENTS.md` is a parallel instruction file used by OpenCode and mirrors this file. Keep architectural guidance in sync across both when you change one.
+
 ## Project
 
-iOS-only Expo / React Native PoC that records audio, transcribes it on-device with Apple Speech, and runs sentiment + emotion classification plus transcript anonymization through Apple's on-device Foundation Models LLM. Nothing leaves the device. There is no backend, no Android support, no persistent storage.
+iOS-only Expo / React Native app that records audio, transcribes it on-device with Apple Speech, and runs sentiment + emotion classification plus transcript anonymization through Apple's on-device Foundation Models LLM. Only the on-device-anonymized text + sentiment metadata leave the device, to a hosted FastAPI backend (`server/`) that picks a canonical reference (a Bible verse for the Christian variant) and fetches the canonical text from a trusted source. There is no Android support, no persistent storage, no chat or session memory.
 
 ## Commands
 
@@ -23,13 +25,31 @@ This app **cannot run in Expo Go** — it depends on three native modules (`expo
 
 ## Architecture
 
-The whole user flow is one screen (`app/index.tsx`) driving an `idle → recording → processing → results` state machine. Each step is a hook that owns its own state; `index.tsx` only wires them together via two `useEffect`s that chain the pipeline:
+The whole user flow is one screen (`app/index.tsx`) driving an `idle → recording → processing → responseLookup → results` state machine. Each step is a hook that owns its own state; `index.tsx` wires them together via `useEffect`s that chain the pipeline:
 
 1. `useAudioRecorder` (`hooks/use-audio-recorder.ts`) — wraps `expo-av`'s `Audio.Recording`, returns `{ duration, startRecording, stopRecording }`. Holds the recording in a ref and tears it down on unmount.
 2. `useTranscriber` (`hooks/use-transcriber.ts`) — feeds the recorded URI to `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })` and listens via `useSpeechRecognitionEvent('result' | 'end' | 'error')`. Returns `{ transcript, isTranscribing, error, transcribe, reset }`. The hook has no return value from `transcribe()` — results arrive asynchronously through events and update hook state.
 3. `useSentimentAnalyzer` (`hooks/use-sentiment-analyzer.ts`) — calls Apple Foundation Models for sentiment, emotions, confidence, and anonymized text. Returns `{ result, raw, isAnalyzing, error, analyze, reset }`. The `raw` field (`{ strategy: 'object' | 'text-fallback', value: string }`) captures pre-normalization output and the generation path taken — used by the debug screen. See below.
+4. `useSpiritualResponseLookup` (`hooks/use-spiritual-response-lookup.ts`) — POSTs the anonymized text + sentiment metadata + `appVariant` to the hosted backend via `services/lookup-client.ts`, gets back `{ primary, alternates, provider, model, retryCount, fallbackUsed, crisisFlag }` (or a Stoic stub). One shot per call, no retries on device — the backend owns provider fallback. Returns `{ result, isLoading, error, lookup, reset }`.
 
-The `processing` state covers both transcription and sentiment analysis. Two effects watch the relevant `is*` flags and advance the state machine when each step finishes. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx` that triggers it and another that advances on completion.
+The `processing` state covers transcription + sentiment; `responseLookup` is the off-device network step (separated so loading copy + error handling are explicit). Three effects in `app/index.tsx` advance the machine: transcript done → run sentiment; sentiment done → run lookup; lookup settled → render results. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx`.
+
+### Privacy boundary
+
+The on-device side runs sentiment + anonymization with Apple Foundation Models. **Only the anonymized text + sentiment metadata (`{appVariant, anonymizedText, sentiment, emotions, confidence}`) leave the device.** No audio, transcript, audio file path, recording duration, or device identifiers are ever sent. The lookup client (`services/lookup-client.ts`) is the only network egress in the app — anything new that hits the network goes through there or it breaks the privacy posture.
+
+### Hosted backend (`server/`)
+
+FastAPI service deployed to Fly.io. Sole endpoint that does work is `POST /lookup`. Receives the anonymized payload, scans for crisis keywords (informational `crisisFlag` only — no LLM prompt branching), dispatches by `appVariant` to a registered adapter:
+
+- **Christian** (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical verse text from the configured Bible API (`server/app/lookup/bible_api.py`, default `bible-api.com`, World English Bible) for each reference before responding. LLM output is never returned as scripture text. Per-reference Bible API failures populate `textError`; the whole response only fails when *every* fetch fails.
+- **Stoic** — stub adapter returns `{ status: "not_implemented", appVariant: "stoic" }` until the catalog is seeded.
+
+Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py` — providers do one-shot calls and raise typed errors; the runner handles immediate fallback on 429, bounded jittered retries on transient failures, and `AllProvidersFailedError` when the chain is exhausted.
+
+Device config lives in `app.json` `extra` (`lookupApiUrl`, `lookupClientSecret`, `appVariant`), sourced from `EXPO_PUBLIC_LOOKUP_API_URL` / `EXPO_PUBLIC_LOOKUP_CLIENT_SECRET` / `EXPO_PUBLIC_APP_VARIANT` at build time. If `lookupApiUrl` is unset, the device throws `MissingLookupApiUrlError` before any network call — this is also the emergency-rollback path (a build without the URL falls back to the previous on-device-only flow).
+
+The Mac-local harness (`tools/lookup-harness/`) is still the right place to iterate prompts and provider behavior — faster cycle than redeploying. The production code lives in `server/`. **When changing prompts or adapters, port the change to both** (or document the divergence intentionally). Treat `server/` as the source of truth for production behavior.
 
 ### Planned hosted response direction
 
@@ -52,7 +72,7 @@ Implementation guidance for upcoming hosted lookup work:
 - Optional read-aloud may be added for fetched canonical text, never provider-generated text.
 - Do not broaden to additional traditions unless a future plan explicitly changes that.
 
-Before code on this lands, see `docs/plans/2026-05-13-lookup-harness-plan.md` — a Mac-local web app prototype of the production lookup backend. It exercises the text half of the pipeline (sentiment → LLM passage selection) without device recording, and is the intended place to iterate selection prompts before phone-side implementation.
+A working prototype of this backend already exists at `tools/lookup-harness/` — see the entry under "Debug tools" below. Iterate selection prompts and provider behavior there before phone-side implementation. Original plan: `docs/plans/2026-05-13-lookup-harness-plan.md`.
 
 ### Sentiment analyzer and anonymizer (the non-obvious part)
 
@@ -67,11 +87,17 @@ Both paths funnel through `normalizeSentiment` / `normalizeEmotions` / `normaliz
 
 ## Debug tools (dev-only)
 
-Two off-device affordances exist for iterating on the sentiment analyzer without recording on a phone:
+Off-device affordances for iterating without recording on a phone:
 
 - **`/debug` route** (`app/debug.tsx`) — `__DEV__`-gated link on the home screen. Bypasses recording + STT: type a transcript, hit Analyze, and see the normalized sentiment/emotions, anonymized text, and raw model output, with a badge showing whether `generateObject` succeeded or the `generateText` fallback fired. Run it in the iOS 26 Simulator on an Apple Silicon Mac with Apple Intelligence enabled.
 - **`tools/sentiment-cli/`** — Swift Package executable that calls `FoundationModels` directly on macOS. `swift run sentiment-cli "text"` (or pipe stdin); `--raw` also dumps unstructured `generateText` output. Useful for prompt sweeps over fixture files. The prompt and `Generable` schema are duplicated from `use-sentiment-analyzer.ts` — keep them in sync when changing the production prompt.
 - **`tools/sentiment-cli/run-anonymization-samples.sh`** — runs 20 privacy-heavy samples through the Swift CLI with `--raw`. Use this to catch privacy guard regressions after changing anonymization rules.
+- **`tools/lookup-harness/`** — Mac-local FastAPI web app (`./start.sh`, http://localhost:8000) that exercises the text half of the production pipeline: shells out to the Swift `sentiment-cli` for sentiment + anonymization, then calls a hosted provider for passage selection. This is the intended place to iterate selection prompts before phone-side implementation.
+  - `app/pipeline.py` — Swift CLI subprocess wrapper + crisis-language scan
+  - `app/providers/{gemini,openrouter,groq}.py` — async clients; selectable per-run via UI dropdown
+  - `app/lookup/{base,christian,stoic}.py` — `LookupAdapter` Protocol; one adapter per `appVariant`. Stoic is a stub until the catalog is seeded
+  - Fallback chain (UI checkbox): primary → next provider on `429` / timeout, with bounded retries + jitter. This mirrors the provider strategy planned for the device app
+  - API keys via `.env` (`GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `GROQ_API_KEY`); missing keys produce a clean lookup error rather than crashing the run
 
 The Swift CLI mirrors the anonymized-text guard and prints both raw model output and guarded anonymized text. Keep the CLI and TypeScript guard rules in sync when changing privacy behavior.
 

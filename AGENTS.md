@@ -4,7 +4,7 @@ Note: `CLAUDE.md` also exists as a parallel instruction file for Claude Code. Th
 
 ## Project
 
-`mic-check` is an iOS-only Expo / React Native proof of concept. It records audio, transcribes it on-device with Apple Speech, then analyzes sentiment/emotions and produces anonymized text with Apple's on-device Foundation Models LLM. There is no backend, Android support, web support target, or persistent storage.
+`mic-check` is an iOS-only Expo / React Native app. It records audio, transcribes it on-device with Apple Speech, analyzes sentiment/emotions and produces anonymized text with Apple's on-device Foundation Models LLM, then calls a hosted FastAPI backend (`server/`) with just the anonymized text + sentiment metadata to receive a canonical response (a Bible verse for the Christian variant). No Android, no web target, no persistent storage, no chat or session memory.
 
 This app **cannot run in Expo Go**. It depends on native modules for audio, speech recognition, and Foundation Models, so use native iOS builds. Apple Intelligence requires real hardware (iPhone 15 Pro/16 series, M1+ iPad/Mac), iOS 26+, and Apple Intelligence enabled in Settings. Simulators won't work for the full recording+transcription flow.
 
@@ -22,38 +22,29 @@ npm run lint                # eslint via expo config (expo lint)
 
 ## Architecture
 
-The main user flow lives in `app/index.tsx` as an `idle → recording → processing → results` state machine. Two `useEffect`s chain the pipeline. Hooks own the work:
+The main user flow lives in `app/index.tsx` as an `idle → recording → processing → responseLookup → results` state machine. Three `useEffect`s chain the pipeline. Hooks own the work:
 
 - `hooks/use-audio-recorder.ts` — wraps `expo-av` `Audio.Recording`, returns `{ duration, startRecording, stopRecording }`. Tears down on unmount.
 - `hooks/use-transcriber.ts` — calls `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })`, receives results via `useSpeechRecognitionEvent`. Returns `{ transcript, isTranscribing, error, transcribe, reset }`.
 - `hooks/use-sentiment-analyzer.ts` — calls Apple Foundation Models, normalizes output, returns anonymized transcript. Returns `{ result, raw, isAnalyzing, error, analyze, reset }`.
+- `hooks/use-spiritual-response-lookup.ts` — POSTs the anonymized payload to the hosted backend via `services/lookup-client.ts` and returns `{ result, isLoading, error, lookup, reset }`. One shot per call; the backend owns provider fallback and retries.
 
-The `processing` state covers both transcription and sentiment analysis. If adding another pipeline step, follow the pattern: a focused hook with result/isLoading/error/action/reset, plus a `useEffect` in `app/index.tsx` that chains to the next step.
+The `processing` state covers transcription + sentiment; `responseLookup` is the off-device step. If adding another pipeline step, follow the pattern: a focused hook with result/isLoading/error/action/reset, plus a `useEffect` in `app/index.tsx` that chains to the next step.
 
-### Planned pipeline extension (hosted spiritual response retrieval)
+### Privacy boundary
 
-The next planned step is a hosted LLM lookup after anonymization. The product direction is now two related versions: a Christian version and a Zen version. Target flow:
+Only the on-device anonymized text and sentiment metadata leave the device. The request body is exactly `{ appVariant, anonymizedText, sentiment, emotions, confidence }` — no audio, no raw transcript, no audio file path, no recording duration, no device identifiers. `services/lookup-client.ts` is the only outbound network call in the app; anything that wants to hit the network goes through there or it breaks the privacy posture.
 
-`idle -> recording -> processing (transcribe + anonymize) -> responseLookup -> results`
+### Hosted backend (`server/`)
 
-Implementation guidance for upcoming work:
+FastAPI service deployed to Fly.io. `POST /lookup` is the only endpoint that does work. The backend scans the anonymized text for crisis keywords (informational `crisisFlag` only — no LLM prompt branching), then dispatches by `appVariant` to a registered adapter:
 
-- Add a dedicated hook (for example `hooks/use-spiritual-response-lookup.ts`) with `{ result, isLoading, error, lookup, reset }`.
-- Only pass anonymized text into hosted inference. Do not send raw transcript.
-- Keep lookup single-turn (no chat memory, no thread state).
-- Keep shared infrastructure separate from version-specific behavior with an explicit `appVariant: "christian" | "zen"` boundary or equivalent.
-- Use the hosted LLM for relevance/reference selection, then fetch canonical content from a trusted source.
-- Christian version: LLM selects a verse reference; app fetches verse text from the Bible API.
-- Zen version: LLM selects a koan/reference; app fetches koan text from the koan collection.
-- Provider order should support fallback:
-  1. Primary: Gemini Flash free tier
-  2. Fallback: OpenRouter free model(s)
-- On `429`, immediately attempt fallback provider.
-- Add bounded retries with jitter for transient errors (`429`, `5xx`, timeout).
-- Return one focused response plus structured metadata (reference/source when applicable, text, provider, model, retry count, fallback-used flag) so UI/debug can show strategy.
-- Optional read-aloud may be added for the fetched verse or koan, but it should consume fetched canonical text rather than provider-generated text.
+- Christian (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical text from the configured Bible API (default `bible-api.com`, World English Bible) before responding. LLM output is never returned as scripture text. Individual fetch failures become per-reference `textError`; the call only fails when every fetch fails.
+- Stoic — stub adapter returning `{ status: "not_implemented", appVariant: "stoic" }` until the catalog is seeded.
 
-This is intentionally a tight loop product direction: "speak once, receive one relevant response". For the Christian version, that response is expected to be scripture-oriented. For the Zen version, the exact response shape is still undecided and should be specified before implementation.
+Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py`. Providers are one-shot; the runner does immediate fallback on 429 and bounded jittered retries on transient errors. Device config in `app.json` `extra`: `lookupApiUrl`, `lookupClientSecret`, `appVariant`. A build without `lookupApiUrl` set is the emergency-rollback path back to the on-device-only flow.
+
+The Mac-local harness (`tools/lookup-harness/`) is the right place to iterate prompts and provider behavior — faster cycle than redeploying. When changing prompts or adapter logic, port the change to both `server/` and the harness (or document the divergence intentionally). Treat `server/` as the source of truth for production behavior.
 
 ## Sentiment Analyzer and Anonymizer
 
@@ -82,4 +73,4 @@ See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end
 - `typedRoutes`, `reactCompiler`, and the React Native New Architecture (`newArchEnabled: true`) are enabled in `app.json`.
 - UI should use `ThemedText`, `ThemedView`, `useThemeColor`, and `constants/theme.ts` rather than one-off colors.
 - Read `docs/on-device-ai-approach.md` and `docs/foundation-models-packages.md` before replacing the Foundation Models package or adding fallback architecture.
-- Current product scope is two versions: Christian and Zen. Do not broaden to additional traditions unless a future plan explicitly changes that. The interaction model should remain one-shot rather than chat.
+- Current product scope is Christian (v1, implemented) and Stoic (v2, stub in the variant registry; catalog not yet seeded). A third version slot is open and intentionally undecided. Do not broaden to additional traditions unless a future plan explicitly changes that. The interaction model is one-shot, not chat.

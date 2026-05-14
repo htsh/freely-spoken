@@ -1,11 +1,17 @@
 from dataclasses import dataclass
-from typing import List, Protocol
+from typing import List, Optional, Protocol
 
 
 @dataclass
 class Reference:
     ref: str
     shortReason: str
+    # Canonical text fetched from a variant-specific source (e.g. bible-api.com
+    # for Christian). Optional because the LLM step produces a usable Reference
+    # on its own; enrichment is best-effort and may fail independently.
+    text: Optional[str] = None
+    translation: Optional[str] = None
+    text_error: Optional[str] = None
 
 
 @dataclass

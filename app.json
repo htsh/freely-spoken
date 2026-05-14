@@ -69,7 +69,10 @@
       "router": {},
       "eas": {
         "projectId": "9af03ee3-2eae-4f5c-b0fe-60200c3bd29d"
-      }
+      },
+      "lookupApiUrl": "$EXPO_PUBLIC_LOOKUP_API_URL",
+      "lookupClientSecret": "$EXPO_PUBLIC_LOOKUP_CLIENT_SECRET",
+      "appVariant": "$EXPO_PUBLIC_APP_VARIANT"
     },
     "owner": "arlodog"
   }
