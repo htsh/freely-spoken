@@ -2,7 +2,6 @@ import os
 
 import httpx
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -15,14 +14,15 @@ class GeminiError(Exception):
 
 
 async def generate(system_prompt: str, user_prompt: str) -> str:
-    if not GEMINI_API_KEY:
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_api_key:
         raise GeminiError("GEMINI_API_KEY environment variable not set")
 
     async with httpx.AsyncClient(timeout=30) as client:
         try:
             response = await client.post(
                 GEMINI_URL,
-                params={"key": GEMINI_API_KEY},
+                params={"key": gemini_api_key},
                 json={
                     "system_instruction": {
                         "parts": [{"text": system_prompt}]

@@ -51,6 +51,7 @@ app-example
 .idea/
 *.swp
 *.swo
+.pi-lens/
 
 # Xcode
 *.xcworkspace
@@ -63,6 +64,11 @@ Pods/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Python
+__pycache__/
+.venv/
+*.egg-info/
 
 # Local sentiment CLI sample output
 tools/sentiment-cli/output.txt
