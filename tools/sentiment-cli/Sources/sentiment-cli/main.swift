@@ -65,23 +65,28 @@ Do NOT include markdown, code fences, or explanatory text.
 
 // MARK: - CLI plumbing
 
-func readInput(args: [String]) -> (text: String, alsoRunRaw: Bool)? {
+func readInput(args: [String]) -> (text: String, alsoRunRaw: Bool, jsonOutput: Bool)? {
     var args = args
     var alsoRunRaw = false
+    var jsonOutput = false
     if let idx = args.firstIndex(of: "--raw") {
         alsoRunRaw = true
         args.remove(at: idx)
     }
+    if let idx = args.firstIndex(of: "--json") {
+        jsonOutput = true
+        args.remove(at: idx)
+    }
 
     if args.count > 1 {
-        return (args.dropFirst().joined(separator: " "), alsoRunRaw)
+        return (args.dropFirst().joined(separator: " "), alsoRunRaw, jsonOutput)
     }
 
     // No argv text — read stdin.
     let data = FileHandle.standardInput.availableData
     if let text = String(data: data, encoding: .utf8)?
         .trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty {
-        return (text, alsoRunRaw)
+        return (text, alsoRunRaw, jsonOutput)
     }
 
     return nil
@@ -376,10 +381,21 @@ func extractFirstJSONObject(_ text: String) -> String? {
     return nil
 }
 
+// MARK: - JSON output (for --json flag)
+
+struct JSONOutput: Codable {
+    let sentiment: String
+    let emotions: [String]
+    let confidence: Double
+    let anonymizedText: String
+    let rawStrategy: String
+    let raw: String?
+}
+
 // MARK: - Main (top-level — main.swift cannot also use @main)
 
 guard let input = readInput(args: CommandLine.arguments) else {
-    printErr("usage: sentiment-cli [--raw] <text>   (or pipe text on stdin)")
+    printErr("usage: sentiment-cli [--raw] [--json] <text>   (or pipe text on stdin)")
     exit(2)
 }
 
@@ -392,44 +408,124 @@ guard model.availability == .available else {
 
 let session = LanguageModelSession(instructions: sentimentPrompt)
 
-// Structured (generateObject equivalent).
-do {
-    let response = try await session.respond(to: input.text, generating: Sentiment.self)
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    let data = try encoder.encode(response.content)
-    print("--- structured (Generable) ---")
-    print(String(data: data, encoding: .utf8) ?? "<encoding error>")
-    print("\n--- guarded structured anonymizedText ---")
-    print(guardAnonymizedText(
-        response.content.anonymizedText,
-        sourceText: input.text,
-        emotions: response.content.emotions
-    ))
-} catch {
-    printErr("structured generation failed: \(error)")
-}
-
-// Optional unstructured pass — useful to see what the model would have returned
-// without schema constraints (this is what triggers the TS hook's text-fallback path).
-if input.alsoRunRaw {
+if input.jsonOutput {
+    // JSON mode: try structured first, fallback to text generation.
     do {
-        let textSession = LanguageModelSession(instructions: sentimentPrompt)
-        let raw = try await textSession.respond(to: input.text)
-        print("\n--- raw (generateText) ---")
-        print(raw.content)
-
-        if let rawJSON = extractFirstJSONObject(raw.content),
-           let data = rawJSON.data(using: .utf8),
-           let parsed = try? JSONDecoder().decode(Sentiment.self, from: data) {
-            print("\n--- guarded raw anonymizedText ---")
-            print(guardAnonymizedText(
-                parsed.anonymizedText,
-                sourceText: input.text,
-                emotions: parsed.emotions
-            ))
-        }
+        let response = try await session.respond(to: input.text, generating: Sentiment.self)
+        let guarded = guardAnonymizedText(
+            response.content.anonymizedText,
+            sourceText: input.text,
+            emotions: response.content.emotions
+        )
+        let output = JSONOutput(
+            sentiment: response.content.sentiment,
+            emotions: response.content.emotions,
+            confidence: response.content.confidence,
+            anonymizedText: guarded,
+            rawStrategy: "generateObject",
+            raw: nil
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let data = try encoder.encode(output)
+        print(String(data: data, encoding: .utf8)!)
     } catch {
-        printErr("raw generation failed: \(error)")
+        // Fallback to text generation
+        do {
+            let textSession = LanguageModelSession(instructions: sentimentPrompt)
+            let raw = try await textSession.respond(to: input.text)
+            if let rawJSON = extractFirstJSONObject(raw.content),
+               let data = rawJSON.data(using: .utf8),
+               let parsed = try? JSONDecoder().decode(Sentiment.self, from: data) {
+                let guarded = guardAnonymizedText(
+                    parsed.anonymizedText,
+                    sourceText: input.text,
+                    emotions: parsed.emotions
+                )
+                let output = JSONOutput(
+                    sentiment: parsed.sentiment,
+                    emotions: parsed.emotions,
+                    confidence: parsed.confidence,
+                    anonymizedText: guarded,
+                    rawStrategy: "generateText-fallback",
+                    raw: raw.content
+                )
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.sortedKeys]
+                let data = try encoder.encode(output)
+                print(String(data: data, encoding: .utf8)!)
+            } else {
+                let output = JSONOutput(
+                    sentiment: "",
+                    emotions: [],
+                    confidence: 0,
+                    anonymizedText: "",
+                    rawStrategy: "generateText-fallback",
+                    raw: raw.content
+                )
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.sortedKeys]
+                let data = try encoder.encode(output)
+                print(String(data: data, encoding: .utf8)!)
+            }
+        } catch {
+            let output = JSONOutput(
+                sentiment: "",
+                emotions: [],
+                confidence: 0,
+                anonymizedText: "",
+                rawStrategy: "failed",
+                raw: nil
+            )
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.sortedKeys]
+            let data = try encoder.encode(output)
+            print(String(data: data, encoding: .utf8)!)
+            exit(1)
+        }
+    }
+} else {
+    // Human-readable mode (original behavior).
+
+    // Structured (generateObject equivalent).
+    do {
+        let response = try await session.respond(to: input.text, generating: Sentiment.self)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let data = try encoder.encode(response.content)
+        print("--- structured (Generable) ---")
+        print(String(data: data, encoding: .utf8) ?? "<encoding error>")
+        print("\n--- guarded structured anonymizedText ---")
+        print(guardAnonymizedText(
+            response.content.anonymizedText,
+            sourceText: input.text,
+            emotions: response.content.emotions
+        ))
+    } catch {
+        printErr("structured generation failed: \(error)")
+    }
+
+    // Optional unstructured pass — useful to see what the model would have returned
+    // without schema constraints (this is what triggers the TS hook's text-fallback path).
+    if input.alsoRunRaw {
+        do {
+            let textSession = LanguageModelSession(instructions: sentimentPrompt)
+            let raw = try await textSession.respond(to: input.text)
+            print("\n--- raw (generateText) ---")
+            print(raw.content)
+
+            if let rawJSON = extractFirstJSONObject(raw.content),
+               let data = rawJSON.data(using: .utf8),
+               let parsed = try? JSONDecoder().decode(Sentiment.self, from: data) {
+                print("\n--- guarded raw anonymizedText ---")
+                print(guardAnonymizedText(
+                    parsed.anonymizedText,
+                    sourceText: input.text,
+                    emotions: parsed.emotions
+                ))
+            }
+        } catch {
+            printErr("raw generation failed: \(error)")
+        }
     }
 }

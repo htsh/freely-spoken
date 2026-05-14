@@ -25,6 +25,12 @@ swift run sentiment-cli "My name is Maya Patel and the surgery at Northstar Clin
 # Also print the unstructured generateText output (the TS fallback path)
 swift run sentiment-cli --raw "Whatever. The meeting happened. It was fine."
 
+# JSON output for programmatic consumption (e.g. harness/web tools)
+swift run sentiment-cli --json "My name is Maya Patel and the surgery at Northstar Clinic in Denver left me scared."
+
+# JSON via stdin
+echo "I keep waking up at 3am with my chest tight." | swift run sentiment-cli --json
+
 # Run 20 privacy-heavy samples and eyeball raw vs guarded output
 ./run-anonymization-samples.sh
 

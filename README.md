@@ -49,6 +49,7 @@ npx expo run:ios --device
 ```
 
 This will:
+
 - Build the native iOS project
 - Prompt you to select a connected device
 - Install and launch the app
@@ -58,6 +59,7 @@ This will:
 ### 4. Grant permissions
 
 On first launch, the app will request:
+
 - **Microphone access** — required for recording
 - **Speech recognition** — required for transcription
 
@@ -80,17 +82,26 @@ cd tools/sentiment-cli
 swift run sentiment-cli --raw "My name is Maya Patel, I work at Northstar Clinic in Denver, and I feel scared."
 ```
 
+For iterating on verse-selection prompts with sample inputs in a web UI, use the lookup harness:
+
+```bash
+cd tools/lookup-harness
+./start.sh
+```
+
+See [tools/lookup-harness/README.md](tools/lookup-harness/README.md) for setup details.
+
 See [docs/debug-testing.md](docs/debug-testing.md) for the full test matrix, fixture workflow, and end-to-end device checklist.
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| "Apple Intelligence not available" | Ensure iOS 26+ is installed and Apple Intelligence is enabled in Settings > Apple Intelligence & Siri |
-| Speech recognition fails | Check that the device language includes English, and that you've granted the speech recognition permission |
-| Build fails at pod install | Run `cd ios && pod install --repo-update && cd ..` then rebuild |
-| Signing errors | Open `ios/miccheck.xcworkspace` in Xcode and configure your development team under Signing & Capabilities |
-| No sound recorded | Make sure you allowed microphone access. Check Settings > mic-check > Microphone |
+| Problem                            | Fix                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| "Apple Intelligence not available" | Ensure iOS 26+ is installed and Apple Intelligence is enabled in Settings > Apple Intelligence & Siri      |
+| Speech recognition fails           | Check that the device language includes English, and that you've granted the speech recognition permission |
+| Build fails at pod install         | Run `cd ios && pod install --repo-update && cd ..` then rebuild                                            |
+| Signing errors                     | Open `ios/miccheck.xcworkspace` in Xcode and configure your development team under Signing & Capabilities  |
+| No sound recorded                  | Make sure you allowed microphone access. Check Settings > mic-check > Microphone                           |
 
 ## Status
 
