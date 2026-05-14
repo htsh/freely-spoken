@@ -39,7 +39,7 @@ class ChristianAdapter:
         )
 
         try:
-            raw_text = await gemini_generate(
+            raw_text, retry_count = await gemini_generate(
                 CHRISTIAN_SYSTEM_PROMPT, user_prompt
             )
         except GeminiError:
@@ -76,6 +76,7 @@ class ChristianAdapter:
             alternates=alternates,
             provider="gemini",
             model="gemini-2.0-flash",
+            retry_count=retry_count,
         )
 
     def _make_reference(self, data: dict, label: str) -> Reference:

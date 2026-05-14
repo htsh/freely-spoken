@@ -1,4 +1,6 @@
+import asyncio
 import os
+import random
 
 import httpx
 
@@ -8,12 +10,27 @@ GEMINI_URL = (
     f"{GEMINI_MODEL}:generateContent"
 )
 
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_MAX_RETRIES = 3
+_BASE_DELAY = 1.0
+
 
 class GeminiError(Exception):
     pass
 
 
-async def generate(system_prompt: str, user_prompt: str) -> str:
+def _is_retryable(error: GeminiError) -> bool:
+    cause = getattr(error, "__cause__", None)
+    if isinstance(cause, httpx.HTTPStatusError):
+        return cause.response.status_code in _RETRYABLE_STATUS_CODES
+    if isinstance(cause, (httpx.TimeoutException, httpx.ConnectError)):
+        return True
+    return False
+
+
+async def _generate_once(
+    system_prompt: str, user_prompt: str
+) -> str:
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     if not gemini_api_key:
         raise GeminiError("GEMINI_API_KEY environment variable not set")
@@ -56,3 +73,27 @@ async def generate(system_prompt: str, user_prompt: str) -> str:
         ) from e
 
     return text
+
+
+async def generate(
+    system_prompt: str, user_prompt: str
+) -> tuple[str, int]:
+    for attempt in range(_MAX_RETRIES):
+        try:
+            text = await _generate_once(system_prompt, user_prompt)
+            return text, attempt
+        except GeminiError as e:
+            if not _is_retryable(e):
+                raise
+            if attempt == _MAX_RETRIES - 1:
+                raise e
+
+        delay = _BASE_DELAY * (2 ** attempt) + random.uniform(0, 1)
+        print(
+            f"[gemini] Retry {attempt + 2}/{_MAX_RETRIES} "
+            f"after {delay:.1f}s..."
+        )
+        await asyncio.sleep(delay)
+
+    # Unreachable — every path either returns or raises above.
+    raise GeminiError("Unexpected: retry loop exhausted without raising")
