@@ -47,7 +47,7 @@ async def run(
     text: str = Form(""),
     variant: str = Form("christian"),
     provider: str = Form("gemini"),
-    fallback_raw: str = Form(""),
+    fallback_raw: str = Form("", alias="fallback"),
 ):
     fallback = fallback_raw.lower() in ("true", "on", "1", "yes")
     samples = load_samples()
