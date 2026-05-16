@@ -4,7 +4,7 @@ Live document. Free-tier limits change; update this when a provider breaks or a 
 
 ## Current chain
 
-Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
+Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq,cloudflare`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
 
 ### 1. Gemini Flash (primary)
 
@@ -32,6 +32,15 @@ Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,g
 - **Free tier**: ~20 RPM, ~3,000–5,000 requests/day (historically; check current dashboard)
 - **Caveats**: extremely fast when it works, but the free tier is the most aggressively rate-limited of the three. Burns out quickly under sustained load.
 - **Code**: `server/app/providers/groq.py`
+
+### 4. Cloudflare Workers AI
+
+- **Model**: `@cf/meta/llama-3.1-8b-instruct`
+- **Auth**: `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`
+- **Timeout**: 30s
+- **Free tier**: ~10,000 requests/day on Workers free tier
+- **Caveats**: requires Cloudflare account; Workers AI free tier generous but rate-limits per model. Good deep fallback after Groq burns out.
+- **Code**: `server/app/providers/cloudflare.py`
 
 ## Candidate providers (not yet wired)
 
@@ -88,7 +97,7 @@ These are the next candidates to slot into `server/app/providers/` and `PROVIDER
 
 ## Rough daily budget estimate
 
-If all current + candidate providers are wired and operating at free-tier limits:
+If all current providers are wired and operating at free-tier limits:
 
 | Provider | Est. daily requests |
 |---|---|
@@ -96,11 +105,18 @@ If all current + candidate providers are wired and operating at free-tier limits
 | OpenRouter free | 1,000–2,000 (volatile) |
 | Groq | 3,000–5,000 |
 | Cloudflare | 10,000 |
+| **Current total** | **~15,500–18,500** |
+
+If all candidate providers are also wired:
+
+| Provider | Est. daily requests |
+|---|---|
 | Cohere | 1,000 |
 | Together AI | 1,000–2,000 |
 | Fireworks | 1,000 |
+| Mistral | 500 |
 | DeepSeek | 500–1,000 (congested) |
-| **Total** | **~19,000–24,000** |
+| **Total with candidates** | **~19,000–24,000** |
 
 That is plenty for a soft launch with a per-device daily cap of 3 lookups. At 100 DAU = 300 requests/day. At 1,000 DAU = 3,000/day.
 
