@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { StyleSheet, View, Pressable, ScrollView } from 'react-native';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { StyleSheet, View, Pressable, ScrollView, Animated, Easing, AccessibilityInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
@@ -31,14 +31,53 @@ const PRIMARY_HEADINGS: Record<AppVariant, string> = {
   stoic: 'A passage for you',
 };
 
+const METER_BAR_COUNT = 5;
+const METER_BAR_MIN_HEIGHT = 6;
+const METER_BAR_HEIGHT_RANGE = 20;
+
+function RecordingLevelMeter({ inputLevel }: { inputLevel: number }) {
+  const normalizedLevel = Math.max(0, Math.min(1, inputLevel));
+
+  return (
+    <View
+      style={styles.levelMeter}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel="Live microphone input level"
+    >
+      {Array.from({ length: METER_BAR_COUNT }, (_, index) => {
+        const barProgress = Math.min(1, Math.max(0, normalizedLevel * METER_BAR_COUNT - index));
+        const barHeight = METER_BAR_MIN_HEIGHT + barProgress * METER_BAR_HEIGHT_RANGE;
+
+        return (
+          <View
+            key={`meter-bar-${index}`}
+            style={[
+              styles.levelMeterBar,
+              {
+                height: barHeight,
+                opacity: 0.35 + barProgress * 0.65,
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const [appState, setAppState] = useState<AppState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [showAlternates, setShowAlternates] = useState(false);
+  const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
+  const pulseScale = useRef(new Animated.Value(1)).current;
 
   const appVariant = useMemo<AppVariant>(() => getBuildAppVariant(), []);
 
-  const { duration, startRecording, stopRecording } = useAudioRecorder();
+  const {
+    duration, inputLevel, startRecording, stopRecording,
+  } = useAudioRecorder();
   const {
     transcript, isTranscribing, error: transcribeError,
     transcribe, reset: resetTranscriber,
@@ -142,6 +181,59 @@ export default function HomeScreen() {
     }
   }, [appState, isLookingUp, lookupResult, lookupError]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (isMounted) setReduceMotionEnabled(enabled);
+      })
+      .catch(() => {});
+
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotionEnabled,
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (appState !== 'recording' || reduceMotionEnabled) {
+      pulseScale.stopAnimation();
+      pulseScale.setValue(1);
+      return;
+    }
+
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseScale, {
+          toValue: 1.08,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseScale, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    pulseAnimation.start();
+
+    return () => {
+      pulseAnimation.stop();
+      pulseScale.stopAnimation();
+      pulseScale.setValue(1);
+    };
+  }, [appState, reduceMotionEnabled, pulseScale]);
+
   const processingLabel = isTranscribing
     ? 'Transcribing...'
     : isAnalyzing
@@ -180,9 +272,23 @@ export default function HomeScreen() {
             <ThemedText style={styles.timer}>
               {formatDuration(duration)}
             </ThemedText>
-            <Pressable style={styles.stopButton} onPress={handleStop}>
-              <View style={styles.stopSquare} />
-            </Pressable>
+            <View style={styles.recordingControlWrap}>
+              {!reduceMotionEnabled && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.stopPulseHalo,
+                    {
+                      transform: [{ scale: pulseScale }],
+                    },
+                  ]}
+                />
+              )}
+              <Pressable style={styles.stopButton} onPress={handleStop}>
+                <View style={styles.stopSquare} />
+              </Pressable>
+            </View>
+            <RecordingLevelMeter inputLevel={inputLevel} />
             <ThemedText style={styles.hint}>Recording...</ThemedText>
           </View>
         )}
@@ -397,11 +503,36 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center',
   },
   recordDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ff3b30' },
+  recordingControlWrap: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stopPulseHalo: {
+    position: 'absolute',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(255,59,48,0.14)',
+  },
   stopButton: {
     width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: '#ff3b30',
     justifyContent: 'center', alignItems: 'center',
   },
   stopSquare: { width: 28, height: 28, borderRadius: 4, backgroundColor: '#ff3b30' },
+  levelMeter: {
+    marginTop: 14,
+    height: 30,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  levelMeterBar: {
+    width: 6,
+    borderRadius: 4,
+    marginHorizontal: 2,
+    backgroundColor: '#ff3b30',
+  },
   timer: { fontSize: 48, lineHeight: 56, fontVariant: ['tabular-nums'], marginBottom: 24 },
   hint: { marginTop: 16, opacity: 0.6 },
   results: { flex: 1, marginTop: 24 },
