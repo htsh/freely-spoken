@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Note: `CLAUDE.md` also exists as a parallel instruction file for Claude Code. This file is the primary reference for OpenCode sessions.
+Note: `CLAUDE.md` also exists as a parallel instruction file for Claude Code. This file is the primary reference for OpenCode sessions. Keep architectural guidance in sync across both when you change one.
 
 ## Project
 
@@ -25,8 +25,8 @@ npm run lint                # eslint via expo config (expo lint)
 The main user flow lives in `app/index.tsx` as an `idle → recording → processing → responseLookup → results` state machine. Three `useEffect`s chain the pipeline. Hooks own the work:
 
 - `hooks/use-audio-recorder.ts` — wraps `expo-av` `Audio.Recording`, returns `{ duration, startRecording, stopRecording }`. Tears down on unmount.
-- `hooks/use-transcriber.ts` — calls `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })`, receives results via `useSpeechRecognitionEvent`. Returns `{ transcript, isTranscribing, error, transcribe, reset }`.
-- `hooks/use-sentiment-analyzer.ts` — calls Apple Foundation Models, normalizes output, returns anonymized transcript. Returns `{ result, raw, isAnalyzing, error, analyze, reset }`.
+- `hooks/use-transcriber.ts` — calls `ExpoSpeechRecognitionModule.start({ audioSource: { uri }, requiresOnDeviceRecognition: true })`, receives results via `useSpeechRecognitionEvent`. Returns `{ transcript, isTranscribing, error, transcribe, reset }`. `transcribe()` has no return value; results arrive asynchronously through events.
+- `hooks/use-sentiment-analyzer.ts` — calls Apple Foundation Models, normalizes output, returns anonymized transcript. Returns `{ result, raw, isAnalyzing, error, analyze, reset }`. `raw` is `{ strategy: 'object' | 'text-fallback', value: string }` capturing pre-normalization output and the generation path taken.
 - `hooks/use-spiritual-response-lookup.ts` — POSTs the anonymized payload to the hosted backend via `services/lookup-client.ts` and returns `{ result, isLoading, error, lookup, reset }`. One shot per call; the backend owns provider fallback and retries.
 
 The `processing` state covers transcription + sentiment; `responseLookup` is the off-device step. If adding another pipeline step, follow the pattern: a focused hook with result/isLoading/error/action/reset, plus a `useEffect` in `app/index.tsx` that chains to the next step.
@@ -39,19 +39,29 @@ Only the on-device anonymized text and sentiment metadata leave the device. The 
 
 FastAPI service deployed to Fly.io. `POST /lookup` is the only endpoint that does work. The backend scans the anonymized text for crisis keywords (informational `crisisFlag` only — no LLM prompt branching), then dispatches by `appVariant` to a registered adapter:
 
-- Christian (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical text from the configured Bible API (default `bible-api.com`, World English Bible) before responding. LLM output is never returned as scripture text. Individual fetch failures become per-reference `textError`; the call only fails when every fetch fails.
+- Christian (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical text from the configured Bible API (`server/app/lookup/bible_api.py`, default `bible-api.com`, World English Bible) before responding. LLM output is never returned as scripture text. Individual fetch failures become per-reference `textError`; the call only fails when every fetch fails.
 - Stoic — stub adapter returning `{ status: "not_implemented", appVariant: "stoic" }` until the catalog is seeded.
 
-Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py`. Providers are one-shot; the runner does immediate fallback on 429 and bounded jittered retries on transient errors. Device config in `app.json` `extra`: `lookupApiUrl`, `lookupClientSecret`, `appVariant`. A build without `lookupApiUrl` set is the emergency-rollback path back to the on-device-only flow.
+Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py`. Providers are one-shot; the runner does immediate fallback on 429 and bounded jittered retries on transient errors. Device config in `app.json` `extra`: `lookupApiUrl`, `lookupClientSecret`, `appVariant`. A build without `lookupApiUrl` set throws `MissingLookupApiUrlError` before any network call — this is the emergency-rollback path back to the on-device-only flow.
 
 The Mac-local harness (`tools/lookup-harness/`) is the right place to iterate prompts and provider behavior — faster cycle than redeploying. When changing prompts or adapter logic, port the change to both `server/` and the harness (or document the divergence intentionally). Treat `server/` as the source of truth for production behavior.
+
+### Planned hosted response direction
+
+Three ordered versions, each sharing the privacy-first pipeline and differing only in the response layer:
+
+1. **Christian (v1)** — implemented. LLM selects a Bible verse reference; app fetches canonical verse text from a Bible API.
+2. **Stoic (v2)** — stub. LLM selects a passage ID from a curated Stoic catalog (Epictetus *Enchiridion* + Marcus Aurelius *Meditations*); backend returns stored canonical text. Catalog curation and response framing are governed by `docs/stoic-curation-rubric.md`.
+3. **Open slot (v3)** — Zen koans are no longer the committed v3. Top concrete-short-passage candidates are listed in `docs/other_wisdom_sources.md`. Zen remains a candidate only if reshaped from koans to a more concrete form.
+
+The product shape v1 and v2 are pulling toward is **"short, concrete passage."** Keep lookup single-turn. Do not add chat memory, thread state, accounts, feeds, or persistent history.
 
 ## Sentiment Analyzer and Anonymizer
 
 This is the most complex hook and the easiest to regress. `analyze()` gates on `getTextModelAvailability()`, then tries two paths:
 
 1. `generateObject()` with `SENTIMENT_SCHEMA` (JSON schema for `{ sentiment, emotions, confidence, anonymizedText }`).
-2. On failure, `generateText()` with `SENTIMENT_PROMPT`, then `extractFirstJSONObject()` parses the first JSON object from free-form output.
+2. On failure, `generateText()` with `SENTIMENT_PROMPT`, then `extractFirstJSONObject()` — a hand-written brace matcher that tolerates strings, escapes, and surrounding prose — parses the first JSON object from free-form output.
 
 Both paths normalize via `normalizeSentiment`, `normalizeEmotions`, `normalizeConfidence`, and `normalizeAnonymizedText`. The alias maps (`SENTIMENT_ALIASES`, `EMOTION_ALIASES`) are critical because the on-device 3B model returns loose labels (`"happy"`, `"angry"`, `"85%"`, comma-joined strings). `normalizeAnonymizedText` applies a local privacy guard: if the model output reuses protected terms, identifiers, or too much source wording, it falls back to a generic category-based safe sentence — never the original transcript.
 
@@ -62,8 +72,19 @@ When changing the prompt, schema, aliases, anonymization rules, or model package
 - **`app/debug.tsx`** — `__DEV__`-gated `/debug` route. Bypasses recording and STT; calls the production `useSentimentAnalyzer()` hook. Shows normalized sentiment/anonymized text, raw model output, and the strategy badge (`object` or `text-fallback`).
 - **`tools/sentiment-cli/`** — Swift Package executable that calls Foundation Models directly on macOS. `swift run sentiment-cli "text"` (or pipe stdin); `--raw` also dumps unstructured `generateText` output. The prompt, schema, and anonymized-text guard are duplicated from the TypeScript hook — keep them in sync.
 - **`tools/sentiment-cli/run-anonymization-samples.sh`** — runs 20 privacy-heavy samples through the Swift CLI with `--raw`. Use this to catch privacy guard regressions after changing anonymization rules.
+- **`tools/lookup-harness/`** — Mac-local FastAPI web app (`./start.sh`, http://localhost:8000) that exercises the text half of the production pipeline: shells out to the Swift `sentiment-cli` for sentiment + anonymization, then calls a hosted provider for passage selection. This is the intended place to iterate selection prompts before phone-side implementation.
 
 See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end-to-end device checklist.
+
+## Load Testing
+
+A pre-deployment VPS load stage for `/lookup` is planned in `docs/superpowers/specs/2026-05-15-lookup-load-stage-design.md`.
+- 3-phase gated ladder: `1h discovery` → `6h soak` → `24h soak`.
+- Discovery: ramp `+2 RPS every 5 min`, break on `>5%` non-2xx over rolling 5 min window, cap `5,000` calls.
+- Soak 6h: run at `75%` of discovered stable RPS, pass if `<1%` errors and `p95 < 8s`, cap `20,000`.
+- Soak 24h: same thresholds, cap `50,000`.
+- Runner is a separate macOS machine; targets the live VPS endpoint directly with Christian payloads.
+- Env inputs: `LOOKUP_STAGE_URL`, `LOOKUP_STAGE_SECRET`, `LOAD_SEED`.
 
 ## Conventions
 
@@ -74,3 +95,7 @@ See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end
 - UI should use `ThemedText`, `ThemedView`, `useThemeColor`, and `constants/theme.ts` rather than one-off colors.
 - Read `docs/on-device-ai-approach.md` and `docs/foundation-models-packages.md` before replacing the Foundation Models package or adding fallback architecture.
 - Current product scope is Christian (v1, implemented) and Stoic (v2, stub in the variant registry; catalog not yet seeded). A third version slot is open and intentionally undecided. Do not broaden to additional traditions unless a future plan explicitly changes that. The interaction model is one-shot, not chat.
+
+## OpenSpec Workflow
+
+This repo uses an experimental OpenSpec change-management workflow. The `.opencode/` directory contains repo-local commands (`opsx-propose`, `opsx-apply`, `opsx-explore`, `opsx-archive`) and skills that drive the `openspec` CLI tool (installed via the `@opencode-ai/plugin` package in `.opencode/package.json`). These are used for planning and implementing larger changes through structured artifacts (`proposal.md`, `design.md`, `tasks.md`). If the user invokes an OpenSpec command, follow the instructions in the corresponding `.opencode/commands/*.md` and `.opencode/skills/*/SKILL.md` files.
