@@ -4,7 +4,7 @@ Live document. Free-tier limits change; update this when a provider breaks or a 
 
 ## Current chain
 
-Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq,cloudflare,together`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
+Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq,cloudflare,together,cerebras`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
 
 ### 1. Gemini Flash (primary)
 
@@ -50,6 +50,15 @@ Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,g
 - **Free tier**: ~10–20 RPM, ~1,000–2,000 requests/day (model-specific; check current dashboard)
 - **Caveats**: free tier is model-specific and may change. Fast inference when it works. Deep fallback after Cloudflare.
 - **Code**: `server/app/providers/together.py`
+
+### 6. Cerebras
+
+- **Model**: `llama3.1-8b`
+- **Auth**: `CEREBRAS_API_KEY`
+- **Timeout**: 30s
+- **Free tier**: ~10–20 RPM, ~1,000–2,000 requests/day (check current dashboard)
+- **Caveats**: OpenAI-compatible API (`https://api.cerebras.ai/v1`). Very fast inference on dedicated wafer-scale hardware. Good last-resort fallback when other free tiers are congested.
+- **Code**: `server/app/providers/cerebras.py`
 
 ## Candidate providers (not yet wired)
 
@@ -98,7 +107,8 @@ If all current providers are wired and operating at free-tier limits:
 | Groq | 3,000–5,000 |
 | Cloudflare | 10,000 |
 | Together AI | 1,000–2,000 |
-| **Current total** | **~16,500–20,500** |
+| Cerebras | 1,000–2,000 |
+| **Current total** | **~17,500–22,500** |
 
 If all candidate providers are also wired:
 
@@ -108,7 +118,7 @@ If all candidate providers are also wired:
 | Fireworks | 1,000 |
 | Mistral | 500 |
 | DeepSeek | 500–1,000 (congested) |
-| **Total with candidates** | **~19,500–24,000** |
+| **Total with candidates** | **~20,500–26,000** |
 
 That is plenty for a soft launch with a per-device daily cap of 3 lookups. At 100 DAU = 300 requests/day. At 1,000 DAU = 3,000/day.
 

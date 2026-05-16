@@ -25,7 +25,7 @@ from typing import Awaitable, Callable
 import httpx
 
 from app.config import SETTINGS
-from app.providers import cloudflare, gemini, groq, openrouter, together
+from app.providers import cerebras, cloudflare, gemini, groq, openrouter, together
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +37,10 @@ PROVIDERS: dict[str, tuple[str, Callable[[str, str], Awaitable[str]]]] = {
     groq.NAME: (groq.MODEL, groq.generate),
     cloudflare.NAME: (cloudflare.MODEL, cloudflare.generate),
     together.NAME: (together.MODEL, together.generate),
+    cerebras.NAME: (cerebras.MODEL, cerebras.generate),
 }
 
-_ERRORS = (cloudflare.CloudflareError, gemini.GeminiError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
+_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, gemini.GeminiError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
 
 
 @dataclass
