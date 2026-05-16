@@ -4,7 +4,7 @@ Live document. Free-tier limits change; update this when a provider breaks or a 
 
 ## Current chain
 
-Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq,cloudflare`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
+Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,groq,cloudflare,together`). The runner in `server/app/llm_runner.py` walks this list, immediately falling back on 429, retrying with jitter on 5xx/timeout.
 
 ### 1. Gemini Flash (primary)
 
@@ -42,18 +42,18 @@ Order is configurable via `LOOKUP_PROVIDER_ORDER` (default: `gemini,openrouter,g
 - **Caveats**: requires Cloudflare account; Workers AI free tier generous but rate-limits per model. Good deep fallback after Groq burns out.
 - **Code**: `server/app/providers/cloudflare.py`
 
+### 5. Together AI
+
+- **Model**: `meta-llama/Llama-3.1-8B-Instruct`
+- **Auth**: `TOGETHER_API_KEY`
+- **Timeout**: 30s
+- **Free tier**: ~10–20 RPM, ~1,000–2,000 requests/day (model-specific; check current dashboard)
+- **Caveats**: free tier is model-specific and may change. Fast inference when it works. Deep fallback after Cloudflare.
+- **Code**: `server/app/providers/together.py`
+
 ## Candidate providers (not yet wired)
 
 These are the next candidates to slot into `server/app/providers/` and `PROVIDERS` in `llm_runner.py`. Pattern: async `generate(system_prompt, user_prompt) -> str` plus a typed `*Error(Exception)`.
-
-### Cloudflare Workers AI
-
-- **Model**: `@cf/meta/llama-3.1-8b-instruct` or similar
-- **Auth**: Cloudflare account ID + API token
-- **Free tier**: ~10,000 requests/day on the Workers free tier
-- **Pros**: high daily cap, decent RPM, fast edge inference
-- **Cons**: requires Cloudflare account; model selection is limited to their catalog
-- **API**: REST endpoint at `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run/{model}`
 
 ### Cohere
 
@@ -70,14 +70,6 @@ These are the next candidates to slot into `server/app/providers/` and `PROVIDER
 - **Free tier**: ~1 RPM, ~500 requests/day for the smallest tier
 - **Pros**: good at following structured output instructions
 - **Cons**: very low RPM — only useful as a deep fallback, not for spikes
-
-### Together AI
-
-- **Model**: `meta-llama/Llama-3.1-8B-Instruct` or similar
-- **Auth**: `TOGETHER_API_KEY`
-- **Free tier**: exists for some models, ~10–20 RPM
-- **Pros**: fast inference, good model selection
-- **Cons**: free tier is model-specific and may disappear
 
 ### Fireworks AI
 
@@ -105,18 +97,18 @@ If all current providers are wired and operating at free-tier limits:
 | OpenRouter free | 1,000–2,000 (volatile) |
 | Groq | 3,000–5,000 |
 | Cloudflare | 10,000 |
-| **Current total** | **~15,500–18,500** |
+| Together AI | 1,000–2,000 |
+| **Current total** | **~16,500–20,500** |
 
 If all candidate providers are also wired:
 
 | Provider | Est. daily requests |
 |---|---|
 | Cohere | 1,000 |
-| Together AI | 1,000–2,000 |
 | Fireworks | 1,000 |
 | Mistral | 500 |
 | DeepSeek | 500–1,000 (congested) |
-| **Total with candidates** | **~19,000–24,000** |
+| **Total with candidates** | **~19,500–24,000** |
 
 That is plenty for a soft launch with a per-device daily cap of 3 lookups. At 100 DAU = 300 requests/day. At 1,000 DAU = 3,000/day.
 
