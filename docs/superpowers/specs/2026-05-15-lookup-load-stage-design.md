@@ -34,6 +34,15 @@
 - `LOAD_SEED` for deterministic randomization/replay.
 - Phase-specific knobs (duration, target rate, caps) with defaults below.
 
+### Smoke Test (pre-phase)
+
+Before starting the 3-phase ladder, run a short validation step:
+- Send 10 requests with random fixtures from the corpus.
+- Verify all return HTTP 200 and contain valid JSON with `primary.ref`.
+- Verify auth header (`LOOKUP_STAGE_SECRET`) is accepted (not 401/403).
+- Verify fixture corpus loads and `LOAD_SEED` produces deterministic request bodies.
+- If any check fails, abort immediately with a clear error — do not proceed to Discovery.
+
 ### Phase Logic (New)
 
 - Discovery (1h): aggressive linear ramp, `+2 RPS every 5 min`, break on sustained `>5%` non-2xx over rolling 5-minute window, stop immediately on break, cap `5,000` calls.
