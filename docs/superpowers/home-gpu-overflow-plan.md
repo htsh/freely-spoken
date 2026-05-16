@@ -1,16 +1,18 @@
-# Home GPU Overflow Plan — 3060 Primary, 3090 Ti Burst
+# Home GPU Overflow Plan — Free Chain Primary, 3060 Backup, 3090 Ti Burst
 
 **Status:** Draft. Not yet wired. Use after free-tier chain proves insufficient in production.
 
-## Why this exists
+## Architecture decision
 
-The free API chain (`gemini → openrouter → groq → cloudflare → together → cerebras`) provides **~17,500–22,500 requests/day** at $0, but with unpredictable latency and occasional cascading failures. This document describes a self-hosted overflow that becomes primary once the economics or reliability demand it.
+**Free API chain is primary.** Home GPU is last-resort overflow only. This preserves the $0-cost beta launch and only pays electricity when the free chain burns out.
 
-Hardware already available:
-- **Primary**: Ryzen 5 1600 AF + RTX 3060 12GB (always-on)
+Current free chain: `gemini → openrouter → groq → cloudflare → together → cerebras` = **~17,500–22,500 requests/day**.
+
+Hardware ready:
+- **Backup**: Ryzen 5 1600 AF + RTX 3060 12GB (always-on, ~$12–20/month)
 - **Burst**: RTX 3090 Ti 24GB (WOL, manual or scheduled wake)
 
-At ~$0.18–0.25/kWh, the 3060 costs **~$12–20/month** always-on. The 3090 Ti costs **~$18–28/month** always-on, so it stays off except for peak windows.
+## Why this exists
 
 ## 3060: Software setup
 
