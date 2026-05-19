@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Note: `CLAUDE.md` also exists as a parallel instruction file for Claude Code. This file is the primary reference for OpenCode sessions. Keep architectural guidance in sync across both when you change one.
+Note: `CLAUDE.md` is a parallel instruction file for Claude Code. This file is the primary reference for OpenCode sessions. Keep architectural guidance in sync across both when you change one.
 
 ## Project
 
@@ -78,22 +78,12 @@ When changing the prompt, schema, aliases, anonymization rules, or model package
 
 See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end-to-end device checklist.
 
-## Load Testing
-
-A pre-deployment VPS load stage for `/lookup` is planned in `docs/superpowers/specs/2026-05-15-lookup-load-stage-design.md`.
-- 3-phase gated ladder: `1h discovery` → `6h soak` → `24h soak`.
-- Discovery: ramp `+2 RPS every 5 min`, break on `>5%` non-2xx over rolling 5 min window, cap `5,000` calls.
-- Soak 6h: run at `75%` of discovered stable RPS, pass if `<1%` errors and `p95 < 8s`, cap `20,000`.
-- Soak 24h: same thresholds, cap `50,000`.
-- Runner is a separate macOS machine; targets the live VPS endpoint directly with Christian payloads.
-- Env inputs: `LOOKUP_STAGE_URL`, `LOOKUP_STAGE_SECRET`, `LOAD_SEED`.
-
 ## Conventions
 
 - TypeScript strict mode is enabled.
 - Path alias `@/*` maps to the repo root.
 - Routing uses `expo-router` file-based routes (`app/_layout.tsx` is the root Stack, `app/index.tsx` is the home screen).
-- `typedRoutes`, `reactCompiler`, and the React Native New Architecture (`newArchEnabled: true`) are enabled in `app.json`.
+- `typedRoutes`, `reactCompiler`, and the React Native New Architecture (`newArchEnabled: true`) are enabled in `app.json`. `newArchEnabled` is load-bearing — the Foundation Models bridge requires it.
 - UI should use `ThemedText`, `ThemedView`, `useThemeColor`, and `constants/theme.ts` rather than one-off colors.
 - Read `docs/on-device-ai-approach.md` and `docs/foundation-models-packages.md` before replacing the Foundation Models package or adding fallback architecture.
 - Current product scope is Christian (v1, implemented) and Stoic (v2, stub in the variant registry; catalog not yet seeded). A third version slot is open and intentionally undecided. Do not broaden to additional traditions unless a future plan explicitly changes that. The interaction model is one-shot, not chat.
