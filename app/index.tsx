@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Brand } from '@/constants/brand';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { useTranscriber } from '@/hooks/use-transcriber';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
@@ -34,6 +35,7 @@ const PRIMARY_HEADINGS: Record<AppVariant, string> = {
 const METER_BAR_COUNT = 5;
 const METER_BAR_MIN_HEIGHT = 6;
 const METER_BAR_HEIGHT_RANGE = 20;
+const brandColors = Brand.colors;
 
 function RecordingLevelMeter({ inputLevel }: { inputLevel: number }) {
   const normalizedLevel = Math.max(0, Math.min(1, inputLevel));
@@ -243,7 +245,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>mic-check</ThemedText>
+        <ThemedText type="title" style={styles.title}>{Brand.name}</ThemedText>
 
         {__DEV__ && (
           <Pressable
@@ -494,15 +496,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(10,126,164,0.15)',
+    backgroundColor: 'rgba(177,138,85,0.16)',
   },
   debugLinkText: { fontSize: 12, opacity: 0.8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   recordButton: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: '#ccc',
+    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: brandColors.parchment,
     justifyContent: 'center', alignItems: 'center',
   },
-  recordDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ff3b30' },
+  recordDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: brandColors.destructive },
   recordingControlWrap: {
     width: 96,
     height: 96,
@@ -514,13 +516,13 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(255,59,48,0.14)',
+    backgroundColor: 'rgba(185,64,52,0.14)',
   },
   stopButton: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: '#ff3b30',
+    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: brandColors.destructive,
     justifyContent: 'center', alignItems: 'center',
   },
-  stopSquare: { width: 28, height: 28, borderRadius: 4, backgroundColor: '#ff3b30' },
+  stopSquare: { width: 28, height: 28, borderRadius: 4, backgroundColor: brandColors.destructive },
   levelMeter: {
     marginTop: 14,
     height: 30,
@@ -531,7 +533,7 @@ const styles = StyleSheet.create({
     width: 6,
     borderRadius: 4,
     marginHorizontal: 2,
-    backgroundColor: '#ff3b30',
+    backgroundColor: brandColors.destructive,
   },
   timer: { fontSize: 48, lineHeight: 56, fontVariant: ['tabular-nums'], marginBottom: 24 },
   hint: { marginTop: 16, opacity: 0.6 },
@@ -540,30 +542,30 @@ const styles = StyleSheet.create({
   sectionHeading: { marginTop: 24 },
   transcript: { marginTop: 8, marginBottom: 24, lineHeight: 22 },
   jsonBlock: {
-    marginTop: 8, padding: 12, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.06)',
+    marginTop: 8, padding: 12, borderRadius: 8, backgroundColor: 'rgba(23,34,53,0.06)',
   },
   jsonText: { fontFamily: 'ui-monospace', fontSize: 13, lineHeight: 18 },
   anonymousLabel: { marginTop: 24 },
   anonymousText: { marginTop: 8, lineHeight: 22 },
-  errorText: { color: '#ff3b30', marginTop: 8, marginBottom: 16 },
+  errorText: { color: brandColors.destructive, marginTop: 8, marginBottom: 16 },
   resetButton: {
     marginTop: 32, paddingVertical: 16, alignItems: 'center', borderRadius: 12,
-    backgroundColor: '#333',
+    backgroundColor: brandColors.navy,
   },
-  resetText: { color: '#fff', fontWeight: '600' },
+  resetText: { color: brandColors.ivory, fontWeight: '600' },
 
   primaryHeading: { marginTop: 8 },
   primaryRefBlock: {
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(10,126,164,0.08)',
+    backgroundColor: 'rgba(177,138,85,0.12)',
   },
   alternateRefBlock: {
     marginTop: 12,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(0,0,0,0.04)',
+    backgroundColor: 'rgba(23,34,53,0.05)',
   },
   refLabel: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
   altRefLabel: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
@@ -578,7 +580,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(23,34,53,0.06)',
   },
   altToggleText: { fontSize: 13 },
   alternatesBlock: { marginTop: 4 },
@@ -587,16 +589,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,59,48,0.12)',
+    backgroundColor: 'rgba(185,64,52,0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,59,48,0.4)',
+    borderColor: 'rgba(185,64,52,0.4)',
   },
   crisisBannerText: { lineHeight: 20 },
   stoicStubBlock: {
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(23,34,53,0.05)',
   },
   stoicStubText: { marginTop: 8, lineHeight: 22 },
   lookupErrorBlock: { marginTop: 12 },
@@ -605,7 +607,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    backgroundColor: '#333',
+    backgroundColor: brandColors.navy,
   },
-  retryText: { color: '#fff', fontWeight: '600' },
+  retryText: { color: brandColors.ivory, fontWeight: '600' },
 });
