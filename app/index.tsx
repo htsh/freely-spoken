@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
+import type { SentimentResult } from '@/hooks/use-sentiment-analyzer';
 import { useTranscriber } from '@/hooks/use-transcriber';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
 import { useSpiritualResponseLookup } from '@/hooks/use-spiritual-response-lookup';
@@ -19,7 +20,7 @@ import {
   isStoicStub,
 } from '@/services/lookup-client';
 
-type AppState = 'idle' | 'recording' | 'processing' | 'responseLookup' | 'results';
+type AppState = 'idle' | 'recording' | 'processing' | 'review' | 'responseLookup' | 'results';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -30,6 +31,16 @@ function formatDuration(seconds: number): string {
 const PRIMARY_HEADINGS: Record<AppVariant, string> = {
   christian: 'A verse for you',
   stoic: 'A passage for you',
+};
+
+const LOOKUP_CTA_LABELS: Record<AppVariant, string> = {
+  christian: 'Find My Verse',
+  stoic: 'Find My Passage',
+};
+
+const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
+  christian: 'verse',
+  stoic: 'passage',
 };
 
 const METER_BAR_COUNT = 5;
@@ -144,6 +155,18 @@ export default function HomeScreen() {
     if (req) lookup(req);
   };
 
+  const handleSubmitLookup = () => {
+    const req = buildLookupRequest();
+    if (!req) {
+      setError('No private summary was created');
+      return;
+    }
+
+    setError(null);
+    setAppState('responseLookup');
+    lookup(req);
+  };
+
   // processing → start sentiment analysis when transcript arrives.
   useEffect(() => {
     if (appState !== 'processing' || isTranscribing) return;
@@ -156,24 +179,17 @@ export default function HomeScreen() {
     }
   }, [appState, isTranscribing, transcript, transcribeError, analyze]);
 
-  // processing → responseLookup once sentiment finishes (success only).
+  // processing → review once anonymization finishes (success only).
   useEffect(() => {
     if (appState !== 'processing' || isAnalyzing) return;
 
     if (sentimentResult) {
-      setAppState('responseLookup');
-      lookup({
-        appVariant,
-        anonymizedText: sentimentResult.anonymizedText,
-        sentiment: sentimentResult.sentiment,
-        emotions: sentimentResult.emotions,
-        confidence: sentimentResult.confidence,
-      });
+      setAppState('review');
     } else if (analyzerError) {
       // Sentiment failed — skip lookup, render the analyzer error.
       setAppState('results');
     }
-  }, [appState, isAnalyzing, sentimentResult, analyzerError, appVariant, lookup]);
+  }, [appState, isAnalyzing, sentimentResult, analyzerError]);
 
   // responseLookup → results when lookup settles (success or error).
   useEffect(() => {
@@ -237,10 +253,10 @@ export default function HomeScreen() {
   }, [appState, reduceMotionEnabled, pulseScale]);
 
   const processingLabel = isTranscribing
-    ? 'Transcribing...'
+    ? 'Transcribing on device...'
     : isAnalyzing
-      ? 'Analyzing sentiment and privacy...'
-      : 'Processing...';
+      ? 'Removing identifying details...'
+      : 'Preparing private summary...';
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -297,8 +313,22 @@ export default function HomeScreen() {
 
         {appState === 'processing' && (
           <View style={styles.center}>
-            <ThemedText>{processingLabel}</ThemedText>
+            <PrivateProcessingCue
+              currentLabel={processingLabel}
+              hasTranscript={Boolean(transcript)}
+              isAnalyzing={isAnalyzing}
+              isTranscribing={isTranscribing}
+            />
           </View>
+        )}
+
+        {appState === 'review' && sentimentResult && (
+          <PrivateSummaryReview
+            appVariant={appVariant}
+            result={sentimentResult}
+            onFindResponse={handleSubmitLookup}
+            onRecordAgain={handleReset}
+          />
         )}
 
         {appState === 'responseLookup' && (
@@ -377,6 +407,134 @@ export default function HomeScreen() {
         )}
       </ThemedView>
     </SafeAreaView>
+  );
+}
+
+function PrivateProcessingCue({
+  currentLabel,
+  hasTranscript,
+  isAnalyzing,
+  isTranscribing,
+}: {
+  currentLabel: string;
+  hasTranscript: boolean;
+  isAnalyzing: boolean;
+  isTranscribing: boolean;
+}) {
+  const steps = [
+    {
+      label: 'Transcribing on device',
+      status: isTranscribing ? 'active' : hasTranscript ? 'done' : 'pending',
+    },
+    {
+      label: 'Removing identifying details',
+      status: isAnalyzing ? 'active' : 'pending',
+    },
+    {
+      label: 'Preparing private summary',
+      status: !isTranscribing && !isAnalyzing ? 'active' : 'pending',
+    },
+  ] as const;
+
+  return (
+    <View style={styles.processingPanel}>
+      <View style={styles.processingHalo}>
+        <View style={styles.processingCore} />
+      </View>
+      <ThemedText type="subtitle" style={styles.processingTitle}>
+        {currentLabel}
+      </ThemedText>
+      <ThemedText style={styles.processingPrivacyText}>
+        Your audio and raw transcript stay on this device.
+      </ThemedText>
+
+      <View style={styles.processingSteps}>
+        {steps.map((step) => (
+          <View key={step.label} style={styles.processingStep}>
+            <View
+              style={[
+                styles.processingStepDot,
+                step.status === 'active' ? styles.processingStepDotActive : undefined,
+                step.status === 'done' ? styles.processingStepDotDone : undefined,
+              ]}
+            />
+            <ThemedText
+              style={[
+                styles.processingStepText,
+                step.status === 'pending' ? styles.processingStepTextPending : undefined,
+              ]}
+            >
+              {step.label}
+            </ThemedText>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PrivateSummaryReview({
+  appVariant,
+  result,
+  onFindResponse,
+  onRecordAgain,
+}: {
+  appVariant: AppVariant;
+  result: SentimentResult;
+  onFindResponse: () => void;
+  onRecordAgain: () => void;
+}) {
+  const emotionText = result.emotions.length > 0
+    ? result.emotions.join(', ')
+    : 'none detected';
+  const responseNoun = RESPONSE_NOUN_LABELS[appVariant];
+
+  return (
+    <ScrollView style={styles.results} contentContainerStyle={styles.reviewContent}>
+      <ThemedText type="subtitle" style={styles.reviewEyebrow}>
+        This is what leaves your device
+      </ThemedText>
+      <ThemedText style={styles.reviewIntro}>
+        Your audio and raw transcript stay on this device. Only this anonymized summary and
+        general emotional metadata are sent to find a {responseNoun}.
+      </ThemedText>
+
+      <ThemedView style={styles.reviewPayloadBlock}>
+        <ThemedText style={styles.reviewPayloadLabel}>Anonymized summary</ThemedText>
+        <ThemedText style={styles.reviewPayloadText}>
+          {result.anonymizedText}
+        </ThemedText>
+      </ThemedView>
+
+      <View style={styles.reviewMetadataBlock}>
+        <ThemedText style={styles.reviewMetadataTitle}>Details sent with summary</ThemedText>
+        <View style={styles.reviewMetadataRow}>
+          <ThemedText style={styles.reviewMetadataLabel}>Sentiment</ThemedText>
+          <ThemedText style={styles.reviewMetadataValue}>{result.sentiment}</ThemedText>
+        </View>
+        <View style={styles.reviewMetadataRow}>
+          <ThemedText style={styles.reviewMetadataLabel}>Emotions</ThemedText>
+          <ThemedText style={styles.reviewMetadataValue}>{emotionText}</ThemedText>
+        </View>
+        <View style={styles.reviewMetadataRow}>
+          <ThemedText style={styles.reviewMetadataLabel}>Confidence</ThemedText>
+          <ThemedText style={styles.reviewMetadataValue}>
+            {Math.round(result.confidence * 100)}
+            %
+          </ThemedText>
+        </View>
+      </View>
+
+      <Pressable style={styles.findVerseButton} onPress={onFindResponse}>
+        <ThemedText style={styles.findVerseText}>
+          {LOOKUP_CTA_LABELS[appVariant]}
+        </ThemedText>
+      </Pressable>
+
+      <Pressable style={styles.reviewSecondaryButton} onPress={onRecordAgain}>
+        <ThemedText style={styles.reviewSecondaryText}>Record Again</ThemedText>
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -537,8 +695,158 @@ const styles = StyleSheet.create({
   },
   timer: { fontSize: 48, lineHeight: 56, fontVariant: ['tabular-nums'], marginBottom: 24 },
   hint: { marginTop: 16, opacity: 0.6 },
+  processingPanel: {
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  processingHalo: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(177,138,85,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(177,138,85,0.24)',
+  },
+  processingCore: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 5,
+    borderColor: brandColors.navy,
+    borderTopColor: brandColors.gold,
+  },
+  processingTitle: {
+    marginTop: 22,
+    textAlign: 'center',
+  },
+  processingPrivacyText: {
+    marginTop: 8,
+    maxWidth: 280,
+    textAlign: 'center',
+    lineHeight: 21,
+    opacity: 0.72,
+  },
+  processingSteps: {
+    width: '100%',
+    marginTop: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(23,34,53,0.05)',
+  },
+  processingStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+  },
+  processingStepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(23,34,53,0.28)',
+  },
+  processingStepDotActive: {
+    backgroundColor: brandColors.gold,
+    borderColor: brandColors.gold,
+  },
+  processingStepDotDone: {
+    backgroundColor: brandColors.navy,
+    borderColor: brandColors.navy,
+  },
+  processingStepText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  processingStepTextPending: {
+    opacity: 0.52,
+  },
   results: { flex: 1, marginTop: 24 },
   resultsContent: { paddingBottom: 40 },
+  reviewContent: {
+    paddingTop: 52,
+    paddingBottom: 40,
+  },
+  reviewEyebrow: {
+    marginTop: 4,
+  },
+  reviewIntro: {
+    marginTop: 10,
+    lineHeight: 22,
+    opacity: 0.74,
+  },
+  reviewPayloadBlock: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(177,138,85,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(177,138,85,0.24)',
+  },
+  reviewPayloadLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.72,
+  },
+  reviewPayloadText: {
+    marginTop: 10,
+    fontSize: 17,
+    lineHeight: 26,
+  },
+  reviewMetadataBlock: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: 'rgba(23,34,53,0.05)',
+  },
+  reviewMetadataTitle: {
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    opacity: 0.72,
+  },
+  reviewMetadataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 14,
+    paddingVertical: 5,
+  },
+  reviewMetadataLabel: {
+    fontSize: 14,
+    opacity: 0.62,
+  },
+  reviewMetadataValue: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  findVerseButton: {
+    marginTop: 26,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderRadius: 12,
+    backgroundColor: brandColors.navy,
+  },
+  findVerseText: {
+    color: brandColors.ivory,
+    fontWeight: '700',
+  },
+  reviewSecondaryButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  reviewSecondaryText: {
+    color: brandColors.navy,
+    fontWeight: '600',
+  },
   sectionHeading: { marginTop: 24 },
   transcript: { marginTop: 8, marginBottom: 24, lineHeight: 22 },
   jsonBlock: {
