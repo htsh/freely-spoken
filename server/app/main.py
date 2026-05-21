@@ -65,8 +65,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="mic-check-lookup", lifespan=lifespan)
 
 
-def _error_response(status: int, code: str, message: str) -> JSONResponse:
+def _error_response(
+    status: int, code: str, message: str, *, request_id: str | None = None
+) -> JSONResponse:
     body = ErrorResponse(error=ErrorBody(code=code, message=message))
+    if request_id:
+        return JSONResponse(
+            status_code=status,
+            content=body.model_dump(),
+            headers={"X-Lookup-Request-ID": request_id},
+        )
     return JSONResponse(status_code=status, content=body.model_dump())
 
 
@@ -89,16 +97,27 @@ async def lookup(
     body: LookupRequestBody,
     request: Request,
     x_lookup_client_secret: str | None = Header(default=None, alias="X-Lookup-Client-Secret"),
+    x_client_request_id: str | None = Header(default=None, alias="X-Client-Request-ID"),
 ) -> JSONResponse:
     request_id = str(uuid.uuid4())
     started = time.monotonic()
 
     if SETTINGS.client_secret is not None and x_lookup_client_secret != SETTINGS.client_secret:
-        return _error_response(401, "unauthorized", "missing or invalid client secret")
+        return _error_response(
+            401,
+            "unauthorized",
+            "missing or invalid client secret",
+            request_id=request_id,
+        )
 
     adapter = ADAPTERS.get(body.appVariant)
     if adapter is None:
-        return _error_response(400, "unknown_variant", f"unknown appVariant: {body.appVariant}")
+        return _error_response(
+            400,
+            "unknown_variant",
+            f"unknown appVariant: {body.appVariant}",
+            request_id=request_id,
+        )
 
     crisis_flag = check_crisis(body.anonymizedText)
 
@@ -112,6 +131,7 @@ async def lookup(
         ))
         _log_request(
             request_id=request_id,
+            client_request_id=x_client_request_id,
             variant=body.appVariant,
             body=body,
             outcome="stoic_stub",
@@ -123,7 +143,11 @@ async def lookup(
             fallback_used=False,
         )
         payload = StoicStubResult(**stub, crisisFlag=crisis_flag).model_dump()
-        return JSONResponse(status_code=200, content=payload)
+        return JSONResponse(
+            status_code=200,
+            content=payload,
+            headers={"X-Lookup-Request-ID": request_id},
+        )
 
     sem: asyncio.Semaphore = request.app.state.semaphore
 
@@ -138,6 +162,7 @@ async def lookup(
     except AllProvidersFailedError as e:
         _log_request(
             request_id=request_id,
+            client_request_id=x_client_request_id,
             variant=body.appVariant,
             body=body,
             outcome="all_providers_failed",
@@ -145,10 +170,16 @@ async def lookup(
             started=started,
             error=repr(e.last_error),
         )
-        return _error_response(502, "all_providers_failed", str(e))
+        return _error_response(
+            502,
+            "all_providers_failed",
+            str(e),
+            request_id=request_id,
+        )
     except ChristianAdapterError as e:
         _log_request(
             request_id=request_id,
+            client_request_id=x_client_request_id,
             variant=body.appVariant,
             body=body,
             outcome="adapter_malformed",
@@ -156,12 +187,18 @@ async def lookup(
             started=started,
             error=str(e),
         )
-        return _error_response(502, "all_providers_failed", str(e))
+        return _error_response(
+            502,
+            "all_providers_failed",
+            str(e),
+            request_id=request_id,
+        )
     except BibleApiError as e:
         # _enrich_with_text swallows individual failures into textError, so a
         # raw BibleApiError reaching here means a non-fetch path failed.
         _log_request(
             request_id=request_id,
+            client_request_id=x_client_request_id,
             variant=body.appVariant,
             body=body,
             outcome="bible_api_down",
@@ -169,19 +206,31 @@ async def lookup(
             started=started,
             error=str(e),
         )
-        return _error_response(502, "bible_api_down", str(e))
+        return _error_response(
+            502,
+            "bible_api_down",
+            str(e),
+            request_id=request_id,
+        )
     except Exception as e:  # last-resort
         logger.exception(
-            '"unexpected_error", "request_id": "%s", "variant": "%s"',
+            '"unexpected_error", "request_id": "%s", "client_request_id": "%s", "variant": "%s"',
             request_id,
+            x_client_request_id,
             body.appVariant,
         )
-        return _error_response(500, "internal_error", f"{type(e).__name__}")
+        return _error_response(
+            500,
+            "internal_error",
+            f"{type(e).__name__}",
+            request_id=request_id,
+        )
 
     refs = [result.primary, *result.alternates]
     if refs and all(r.textError and not r.text for r in refs):
         _log_request(
             request_id=request_id,
+            client_request_id=x_client_request_id,
             variant=body.appVariant,
             body=body,
             outcome="bible_api_down",
@@ -192,10 +241,16 @@ async def lookup(
             retry_count=result.retry_count,
             fallback_used=result.fallback_used,
         )
-        return _error_response(502, "bible_api_down", "every reference fetch failed")
+        return _error_response(
+            502,
+            "bible_api_down",
+            "every reference fetch failed",
+            request_id=request_id,
+        )
 
     _log_request(
         request_id=request_id,
+        client_request_id=x_client_request_id,
         variant=body.appVariant,
         body=body,
         outcome="ok",
@@ -216,12 +271,17 @@ async def lookup(
         fallbackUsed=result.fallback_used,
         crisisFlag=crisis_flag,
     )
-    return JSONResponse(status_code=200, content=payload.model_dump())
+    return JSONResponse(
+        status_code=200,
+        content=payload.model_dump(),
+        headers={"X-Lookup-Request-ID": request_id},
+    )
 
 
 def _log_request(
     *,
     request_id: str,
+    client_request_id: str | None,
     variant: str,
     body: LookupRequestBody,
     outcome: str,
@@ -239,6 +299,7 @@ def _log_request(
     latency_ms = round((time.monotonic() - started) * 1000)
     payload = {
         "request_id": request_id,
+        "client_request_id": client_request_id or "",
         "variant": variant,
         "sentiment": body.sentiment,
         "emotions": body.emotions,

@@ -6,7 +6,7 @@ Create a production-ready identity set for the iOS app under the name **Freely S
 
 ## Approved Direction
 
-The production identity should keep the concept from the supplied reference image while removing details that do not survive real app usage. The core logo is a vector-derived mark combining spoken audio and a short sacred passage. The sunburst/glow treatment is not part of the app icon; it is reserved only for future marketing art if needed.
+The production identity should keep the emotional tone of the supplied reference image while removing details that do not survive real app usage. The core logo is a vector-derived mark combining spoken audio and a short sacred passage. The sunburst/glow treatment is not part of the app icon; it belongs to the splash and wide brand lockup where it can carry the original reverent mood without hurting small-size legibility.
 
 ## Asset System
 
@@ -15,7 +15,7 @@ The identity set includes:
 - App icon: square 1024px PNG, flat warm ivory background, navy mark, gold accent.
 - Standalone mark: SVG and PNG for in-app or documentation usage.
 - Wordmark: serif lockup with "Freely" in muted gold and "Spoken" in navy.
-- Splash image: centered mark plus wordmark, sized for Expo splash-screen configuration.
+- Splash image: radiant warm background with centered mark plus wordmark, sized for Expo splash-screen configuration.
 - Favicon and Android adaptive icon files: regenerated to avoid stale Expo defaults even though the product is iOS-only.
 
 ## Color Tokens
@@ -36,4 +36,4 @@ Update user-facing brand text from `mic-check` to `Freely Spoken` in Expo metada
 
 ## Verification
 
-Run asset generation, confirm expected PNG dimensions, and run `npm run lint`. Visual inspection should confirm that the app icon remains legible at small sizes and that the splash image is not carrying background glow or JPEG artifacts.
+Run asset generation, confirm expected PNG dimensions, and run `npm run lint`. Visual inspection should confirm that the app icon remains legible at small sizes and that the splash/lockup treatment carries the original radiant mood without JPEG artifacts.

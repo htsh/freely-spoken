@@ -1,22 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1366 768" role="img" aria-labelledby="title">
   <title id="title">Freely Spoken logo lockup</title>
-  <g transform="translate(322 24)">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="20%" r="78%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#FFF9EC"/>
+      <stop offset="60%" stop-color="#F7F1E8"/>
+      <stop offset="100%" stop-color="#EDEAE5"/>
+    </radialGradient>
+  </defs>
+  <rect width="1366" height="768" fill="#F7F1E8"/>
+  <rect width="1366" height="768" fill="url(#glow)"/>
+  <g stroke="#FFFFFF" stroke-linecap="butt" opacity="0.55">
+    <path d="M683 154H1366" stroke-width="2"/>
+    <path d="M0 206H1366" stroke-width="2"/>
+    <path d="M683 0V768" stroke-width="5" opacity="0.45"/>
+    <path d="M683 154 0 0" stroke-width="1.2"/>
+    <path d="M683 154 1366 0" stroke-width="1.2"/>
+    <path d="M683 154 0 724" stroke-width="1.2"/>
+    <path d="M683 154 1366 724" stroke-width="1.2"/>
+  </g>
+  <g transform="translate(555 112)">
   <g fill="none" stroke="#172235" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M38 116v24" stroke-width="8.5"/>
-    <path d="M55 100v56" stroke-width="8.5"/>
-    <path d="M72 82v92" stroke-width="8.5"/>
-    <path d="M89 64v128" stroke-width="8.5"/>
-    <path d="M106 78v100" stroke-width="8.5"/>
-    <path d="M123 96v64" stroke-width="8.5"/>
+    <path d="M34 116v24" stroke-width="6.7"/>
+    <path d="M47 104v48" stroke-width="6.7"/>
+    <path d="M60 88v80" stroke-width="6.7"/>
+    <path d="M74 72v112" stroke-width="6.7"/>
+    <path d="M88 58v140" stroke-width="6.7"/>
+    <path d="M102 72v112" stroke-width="6.7"/>
+    <path d="M116 88v80" stroke-width="6.7"/>
+    <path d="M130 104v48" stroke-width="6.7"/>
   </g>
-  <path fill="#172235" d="M154 56v120c-18-8-42-4-62 14V82c20-16 43-22 62-26Z"/>
+  <path fill="#172235" d="M166 48v126c-12 0-24 6-34 16-4-34-4-78 0-112 10-16 22-26 34-30Z"/>
   <g fill="none" stroke="#172235" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M168 68c16-4 33 2 45 16v100c-14-10-30-16-45-14" stroke-width="7.5"/>
-    <path d="M158 62v118" stroke-width="7"/>
-    <path d="M186 78v96" stroke-width="5.5"/>
+    <path d="M181 66c16-2 32 4 43 16v98c-12-10-28-16-43-14" stroke-width="5.8"/>
+    <path d="M174 58v120" stroke-width="5.7"/>
+    <path d="M196 76v92" stroke-width="4.2"/>
+    <path d="M209 82v90" stroke-width="3.8"/>
   </g>
-  <path d="M94 200c34 12 86 12 120 0" fill="none" stroke="#B18A55" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M132 198c28 12 64 12 92 0" fill="none" stroke="#B18A55" stroke-width="4.4" stroke-linecap="round"/>
   </g>
-  <text x="450" y="388" text-anchor="middle" fill="#B18A55" font-family="Georgia, 'Times New Roman', serif" font-size="142" font-weight="700">Freely</text>
-  <text x="450" y="540" text-anchor="middle" fill="#172235" font-family="Georgia, 'Times New Roman', serif" font-size="164" font-weight="700">Spoken</text>
+  <text x="683" y="420" text-anchor="middle" fill="#B18A55" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="700">Freely</text>
+  <text x="683" y="588" text-anchor="middle" fill="#172235" font-family="Georgia, 'Times New Roman', serif" font-size="172" font-weight="700">Spoken</text>
 </svg>

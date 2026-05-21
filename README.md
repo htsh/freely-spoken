@@ -105,7 +105,9 @@ See [docs/debug-testing.md](docs/debug-testing.md) for the full test matrix, fix
 
 ## Status
 
-Early proof of concept. iOS only. No persistent storage, no server, no Android support.
+Early proof of concept. iOS only. No persistent storage, no Android support.
+
+The Christian version will launch as **Freely Spoken** (`freelyspoken.com`). Repo may be renamed to match.
 
 ## Next phase (planned)
 

@@ -39,7 +39,7 @@ Expected: all PNG and SVG files listed above are created or regenerated.
 
 Run: `file assets/images/icon.png assets/images/splash-icon.png assets/images/favicon.png assets/images/android-icon-foreground.png assets/images/android-icon-background.png assets/images/android-icon-monochrome.png`
 
-Expected: icon and splash are 1024x1024, favicon is 48x48, Android foreground/background are 512x512, Android monochrome is 432x432.
+Expected: icon and splash are 1024x1024, brand lockup is 1366x768, favicon is 48x48, Android foreground/background are 512x512, Android monochrome is 432x432.
 
 ### Task 2: Wire Brand Metadata And Theme Tokens
 

@@ -16,6 +16,7 @@ private enum Brand {
   static let gold = NSColor(hex: 0xB18A55)
   static let ivory = NSColor(hex: 0xF7F1E8)
   static let parchment = NSColor(hex: 0xEFE4D3)
+  static let light = NSColor(hex: 0xFFF9EC)
   static let ink = NSColor(hex: 0x111827)
 }
 
@@ -157,6 +158,80 @@ private func drawLine(
   path.stroke()
 }
 
+private func drawRadiantBackground(width: CGFloat, height: CGFloat, center: NSPoint) {
+  let bounds = NSRect(x: 0, y: 0, width: width, height: height)
+  Brand.ivory.setFill()
+  bounds.fill()
+
+  if let glow = NSGradient(
+    colorsAndLocations:
+      (NSColor.white.withAlphaComponent(0.96), 0),
+      (Brand.light.withAlphaComponent(0.78), 0.18),
+      (Brand.ivory.withAlphaComponent(0.82), 0.54),
+      (NSColor(hex: 0xEDEAE5).withAlphaComponent(1), 1)
+  ) {
+    glow.draw(
+      fromCenter: center,
+      radius: 0,
+      toCenter: center,
+      radius: max(width, height) * 0.78,
+      options: []
+    )
+  }
+
+  let rayColor = NSColor.white.withAlphaComponent(0.44)
+  for angle in stride(from: -28.0, through: 208.0, by: 28.0) {
+    let radians = CGFloat(angle * .pi / 180)
+    let end = NSPoint(
+      x: center.x + cos(radians) * max(width, height),
+      y: center.y + sin(radians) * max(width, height)
+    )
+    drawLine(
+      from: center,
+      to: end,
+      color: rayColor,
+      width: angle.truncatingRemainder(dividingBy: 56) == 0 ? 2.2 : 1.2,
+      cap: .butt
+    )
+  }
+
+  drawLine(
+    from: NSPoint(x: 0, y: center.y + 52),
+    to: NSPoint(x: width, y: center.y + 52),
+    color: NSColor.white.withAlphaComponent(0.56),
+    width: 2,
+    cap: .butt
+  )
+  drawLine(
+    from: NSPoint(x: center.x, y: 0),
+    to: NSPoint(x: center.x, y: height),
+    color: NSColor.white.withAlphaComponent(0.30),
+    width: 6,
+    cap: .butt
+  )
+}
+
+private func drawSoftIconBackground(width: CGFloat, height: CGFloat) {
+  let bounds = NSRect(x: 0, y: 0, width: width, height: height)
+  Brand.ivory.setFill()
+  bounds.fill()
+
+  if let glow = NSGradient(
+    colorsAndLocations:
+      (NSColor.white.withAlphaComponent(0.92), 0),
+      (Brand.light.withAlphaComponent(0.72), 0.26),
+      (Brand.ivory.withAlphaComponent(1), 1)
+  ) {
+    glow.draw(
+      fromCenter: NSPoint(x: width * 0.5, y: height * 0.42),
+      radius: 0,
+      toCenter: NSPoint(x: width * 0.5, y: height * 0.42),
+      radius: max(width, height) * 0.68,
+      options: []
+    )
+  }
+}
+
 private func drawBrandMark(
   in rect: NSRect,
   markColor: NSColor = Brand.navy,
@@ -171,12 +246,14 @@ private func drawBrandMark(
   )
 
   let bars: [(x: CGFloat, top: CGFloat, bottom: CGFloat)] = [
-    (38, 116, 140),
-    (55, 100, 156),
-    (72, 82, 174),
-    (89, 64, 192),
-    (106, 78, 178),
-    (123, 96, 160),
+    (34, 116, 140),
+    (47, 104, 152),
+    (60, 88, 168),
+    (74, 72, 184),
+    (88, 58, 198),
+    (102, 72, 184),
+    (116, 88, 168),
+    (130, 104, 152),
   ]
 
   for bar in bars {
@@ -184,70 +261,81 @@ private func drawBrandMark(
       from: point(bar.x, bar.top, origin, scale),
       to: point(bar.x, bar.bottom, origin, scale),
       color: markColor,
-      width: 8.5 * scale
+      width: 6.7 * scale
     )
   }
 
   let leftPage = NSBezierPath()
-  leftPage.move(to: point(154, 56, origin, scale))
-  leftPage.line(to: point(154, 176, origin, scale))
+  leftPage.move(to: point(166, 48, origin, scale))
+  leftPage.line(to: point(166, 174, origin, scale))
   leftPage.curve(
-    to: point(92, 190, origin, scale),
-    controlPoint1: point(136, 168, origin, scale),
-    controlPoint2: point(112, 172, origin, scale)
+    to: point(132, 190, origin, scale),
+    controlPoint1: point(154, 174, origin, scale),
+    controlPoint2: point(142, 180, origin, scale)
   )
-  leftPage.line(to: point(92, 82, origin, scale))
   leftPage.curve(
-    to: point(154, 56, origin, scale),
-    controlPoint1: point(112, 66, origin, scale),
-    controlPoint2: point(135, 60, origin, scale)
+    to: point(132, 78, origin, scale),
+    controlPoint1: point(128, 156, origin, scale),
+    controlPoint2: point(128, 112, origin, scale)
+  )
+  leftPage.curve(
+    to: point(166, 48, origin, scale),
+    controlPoint1: point(142, 62, origin, scale),
+    controlPoint2: point(154, 52, origin, scale)
   )
   leftPage.close()
   markColor.setFill()
   leftPage.fill()
 
   let rightPage = NSBezierPath()
-  rightPage.lineWidth = 7.5 * scale
+  rightPage.lineWidth = 5.8 * scale
   rightPage.lineJoinStyle = .round
   rightPage.lineCapStyle = .round
-  rightPage.move(to: point(168, 68, origin, scale))
+  rightPage.move(to: point(181, 66, origin, scale))
   rightPage.curve(
-    to: point(213, 84, origin, scale),
-    controlPoint1: point(184, 64, origin, scale),
-    controlPoint2: point(201, 70, origin, scale)
+    to: point(224, 82, origin, scale),
+    controlPoint1: point(197, 64, origin, scale),
+    controlPoint2: point(213, 70, origin, scale)
   )
-  rightPage.line(to: point(213, 184, origin, scale))
+  rightPage.line(to: point(224, 180, origin, scale))
   rightPage.curve(
-    to: point(168, 170, origin, scale),
-    controlPoint1: point(199, 174, origin, scale),
-    controlPoint2: point(183, 168, origin, scale)
+    to: point(181, 166, origin, scale),
+    controlPoint1: point(212, 170, origin, scale),
+    controlPoint2: point(196, 164, origin, scale)
   )
   markColor.setStroke()
   rightPage.stroke()
 
   drawLine(
-    from: point(158, 62, origin, scale),
-    to: point(158, 180, origin, scale),
+    from: point(174, 58, origin, scale),
+    to: point(174, 178, origin, scale),
     color: markColor,
-    width: 7 * scale
+    width: 5.7 * scale
   )
 
   drawLine(
-    from: point(186, 78, origin, scale),
-    to: point(186, 174, origin, scale),
+    from: point(196, 76, origin, scale),
+    to: point(196, 168, origin, scale),
     color: markColor,
-    width: 5.5 * scale
+    width: 4.2 * scale
+  )
+
+  drawLine(
+    from: point(209, 82, origin, scale),
+    to: point(209, 172, origin, scale),
+    color: markColor,
+    width: 3.8 * scale
   )
 
   if includeAccent {
     let accent = NSBezierPath()
-    accent.lineWidth = 5.5 * scale
+    accent.lineWidth = 4.4 * scale
     accent.lineCapStyle = .round
-    accent.move(to: point(94, 200, origin, scale))
+    accent.move(to: point(132, 198, origin, scale))
     accent.curve(
-      to: point(214, 200, origin, scale),
-      controlPoint1: point(128, 212, origin, scale),
-      controlPoint2: point(180, 212, origin, scale)
+      to: point(224, 198, origin, scale),
+      controlPoint1: point(160, 210, origin, scale),
+      controlPoint2: point(196, 210, origin, scale)
     )
     accentColor.setStroke()
     accent.stroke()
@@ -308,15 +396,17 @@ private func writeRasterAssets() throws {
   let androidBackgroundURL = imageURL.appendingPathComponent("android-icon-background.png")
 
   try writePNG(width: 1024, height: 1024, background: Brand.ivory, hasAlpha: false, to: appIconURL) {
-    Brand.parchment.withAlphaComponent(0.52).setFill()
-    NSBezierPath(ovalIn: NSRect(x: 178, y: 168, width: 668, height: 668)).fill()
-    drawBrandMark(in: NSRect(x: 210, y: 218, width: 604, height: 604))
+    drawSoftIconBackground(width: 1024, height: 1024)
+    Brand.parchment.withAlphaComponent(0.36).setFill()
+    NSBezierPath(ovalIn: NSRect(x: 198, y: 188, width: 628, height: 628)).fill()
+    drawBrandMark(in: NSRect(x: 218, y: 228, width: 588, height: 588))
   }
   try flattenOpaquePNG(at: appIconURL, background: Brand.ivory)
 
   try writePNG(width: 1024, height: 1024, background: Brand.ivory, hasAlpha: false, to: splashURL) {
-    drawBrandMark(in: NSRect(x: 352, y: 148, width: 320, height: 320))
-    drawWordmark(canvasWidth: 1024, topY: 452, large: true)
+    drawRadiantBackground(width: 1024, height: 1024, center: NSPoint(x: 512, y: 238))
+    drawBrandMark(in: NSRect(x: 386, y: 148, width: 252, height: 252))
+    drawWordmark(canvasWidth: 1024, topY: 318, large: true)
   }
   try flattenOpaquePNG(at: splashURL, background: Brand.ivory)
 
@@ -329,21 +419,23 @@ private func writeRasterAssets() throws {
   try flattenOpaquePNG(at: androidBackgroundURL, background: Brand.ivory)
 
   try writePNG(width: 512, height: 512, background: nil, to: imageURL.appendingPathComponent("android-icon-foreground.png")) {
-    drawBrandMark(in: NSRect(x: 106, y: 106, width: 300, height: 300))
+    drawBrandMark(in: NSRect(x: 98, y: 98, width: 316, height: 316))
   }
 
   try writePNG(width: 432, height: 432, background: nil, to: imageURL.appendingPathComponent("android-icon-monochrome.png")) {
-    drawBrandMark(in: NSRect(x: 66, y: 66, width: 300, height: 300), markColor: Brand.ink, accentColor: Brand.ink, includeAccent: false)
+    drawBrandMark(in: NSRect(x: 58, y: 58, width: 316, height: 316), markColor: Brand.ink, accentColor: Brand.ink, includeAccent: false)
   }
 
   try writePNG(width: 512, height: 512, background: nil, to: brandURL.appendingPathComponent("freely-spoken-mark.png")) {
-    drawBrandMark(in: NSRect(x: 56, y: 56, width: 400, height: 400))
+    drawBrandMark(in: NSRect(x: 58, y: 58, width: 396, height: 396))
   }
 
-  try writePNG(width: 1200, height: 720, background: nil, to: brandURL.appendingPathComponent("freely-spoken-lockup.png")) {
-    drawBrandMark(in: NSRect(x: 440, y: 54, width: 320, height: 320))
-    drawWordmark(canvasWidth: 1200, topY: 360, large: true)
+  try writePNG(width: 1366, height: 768, background: Brand.ivory, hasAlpha: false, to: brandURL.appendingPathComponent("freely-spoken-lockup.png")) {
+    drawRadiantBackground(width: 1366, height: 768, center: NSPoint(x: 683, y: 154))
+    drawBrandMark(in: NSRect(x: 555, y: 112, width: 256, height: 256))
+    drawWordmark(canvasWidth: 1366, topY: 286, large: true)
   }
+  try flattenOpaquePNG(at: brandURL.appendingPathComponent("freely-spoken-lockup.png"), background: Brand.ivory)
 
   try writePNG(width: 1200, height: 420, background: nil, to: brandURL.appendingPathComponent("freely-spoken-wordmark.png")) {
     drawWordmark(canvasWidth: 1200, topY: 30, large: true)
@@ -357,20 +449,23 @@ private func markSVG() -> String {
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
     <title id="title">Freely Spoken mark</title>
     <g fill="none" stroke="\(navy)" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M38 116v24" stroke-width="8.5"/>
-      <path d="M55 100v56" stroke-width="8.5"/>
-      <path d="M72 82v92" stroke-width="8.5"/>
-      <path d="M89 64v128" stroke-width="8.5"/>
-      <path d="M106 78v100" stroke-width="8.5"/>
-      <path d="M123 96v64" stroke-width="8.5"/>
+      <path d="M34 116v24" stroke-width="6.7"/>
+      <path d="M47 104v48" stroke-width="6.7"/>
+      <path d="M60 88v80" stroke-width="6.7"/>
+      <path d="M74 72v112" stroke-width="6.7"/>
+      <path d="M88 58v140" stroke-width="6.7"/>
+      <path d="M102 72v112" stroke-width="6.7"/>
+      <path d="M116 88v80" stroke-width="6.7"/>
+      <path d="M130 104v48" stroke-width="6.7"/>
     </g>
-    <path fill="\(navy)" d="M154 56v120c-18-8-42-4-62 14V82c20-16 43-22 62-26Z"/>
+    <path fill="\(navy)" d="M166 48v126c-12 0-24 6-34 16-4-34-4-78 0-112 10-16 22-26 34-30Z"/>
     <g fill="none" stroke="\(navy)" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M168 68c16-4 33 2 45 16v100c-14-10-30-16-45-14" stroke-width="7.5"/>
-      <path d="M158 62v118" stroke-width="7"/>
-      <path d="M186 78v96" stroke-width="5.5"/>
+      <path d="M181 66c16-2 32 4 43 16v98c-12-10-28-16-43-14" stroke-width="5.8"/>
+      <path d="M174 58v120" stroke-width="5.7"/>
+      <path d="M196 76v92" stroke-width="4.2"/>
+      <path d="M209 82v90" stroke-width="3.8"/>
     </g>
-    <path d="M94 200c34 12 86 12 120 0" fill="none" stroke="\(gold)" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M132 198c28 12 64 12 92 0" fill="none" stroke="\(gold)" stroke-width="4.4" stroke-linecap="round"/>
   </svg>
   """
 }
@@ -387,13 +482,32 @@ private func wordmarkSVG() -> String {
 
 private func lockupSVG() -> String {
   """
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 650" role="img" aria-labelledby="title">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1366 768" role="img" aria-labelledby="title">
     <title id="title">Freely Spoken logo lockup</title>
-    <g transform="translate(322 24)">
+    <defs>
+      <radialGradient id="glow" cx="50%" cy="20%" r="78%">
+        <stop offset="0%" stop-color="#FFFFFF"/>
+        <stop offset="20%" stop-color="#FFF9EC"/>
+        <stop offset="60%" stop-color="#F7F1E8"/>
+        <stop offset="100%" stop-color="#EDEAE5"/>
+      </radialGradient>
+    </defs>
+    <rect width="1366" height="768" fill="#F7F1E8"/>
+    <rect width="1366" height="768" fill="url(#glow)"/>
+    <g stroke="#FFFFFF" stroke-linecap="butt" opacity="0.55">
+      <path d="M683 154H1366" stroke-width="2"/>
+      <path d="M0 206H1366" stroke-width="2"/>
+      <path d="M683 0V768" stroke-width="5" opacity="0.45"/>
+      <path d="M683 154 0 0" stroke-width="1.2"/>
+      <path d="M683 154 1366 0" stroke-width="1.2"/>
+      <path d="M683 154 0 724" stroke-width="1.2"/>
+      <path d="M683 154 1366 724" stroke-width="1.2"/>
+    </g>
+    <g transform="translate(555 112)">
   \(markSVG().replacingOccurrences(of: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 256\" role=\"img\" aria-labelledby=\"title\">\n  <title id=\"title\">Freely Spoken mark</title>\n", with: "").replacingOccurrences(of: "\n</svg>", with: ""))
     </g>
-    <text x="450" y="388" text-anchor="middle" fill="\(Brand.goldHex)" font-family="Georgia, 'Times New Roman', serif" font-size="142" font-weight="700">Freely</text>
-    <text x="450" y="540" text-anchor="middle" fill="\(Brand.navyHex)" font-family="Georgia, 'Times New Roman', serif" font-size="164" font-weight="700">Spoken</text>
+    <text x="683" y="420" text-anchor="middle" fill="\(Brand.goldHex)" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="700">Freely</text>
+    <text x="683" y="588" text-anchor="middle" fill="\(Brand.navyHex)" font-family="Georgia, 'Times New Roman', serif" font-size="172" font-weight="700">Spoken</text>
   </svg>
   """
 }
@@ -415,6 +529,7 @@ private func writeReadme() throws {
   - Product name: Freely Spoken
   - Mark: waveform plus open book
   - Voice: calm, direct, reflective
+  - Splash and lockup treatment: warm radiant field inspired by the original brand direction
 
   ## Colors
 
@@ -428,7 +543,7 @@ private func writeReadme() throws {
 
   - `freely-spoken-mark.svg` / `freely-spoken-mark.png`
   - `freely-spoken-wordmark.svg` / `freely-spoken-wordmark.png`
-  - `freely-spoken-lockup.svg` / `freely-spoken-lockup.png`
+  - `freely-spoken-lockup.svg` / `freely-spoken-lockup.png` - wide radiant brand lockup
   - Expo assets in `assets/images/`: app icon, splash icon, favicon, and adaptive icon images.
 
   Keep generated assets in sync by editing the generator and rerunning it from the repository root.

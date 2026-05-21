@@ -24,6 +24,13 @@ type RawSentimentResult = {
   anonymizedText?: unknown;
 };
 
+class SentimentFallbackParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SentimentFallbackParseError';
+  }
+}
+
 const SENTIMENT_SCHEMA = {
   type: 'object',
   required: ['sentiment', 'emotions', 'confidence', 'anonymizedText'],
@@ -125,6 +132,39 @@ const EMOTION_ALIASES: Record<string, Emotion> = {
   surprised: 'surprise',
   thankful: 'gratitude',
 };
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function logSentimentDebug(event: string, details?: Record<string, unknown>): void {
+  if (!__DEV__) {
+    return;
+  }
+  if (details) {
+    console.log('[sentiment]', event, details);
+    return;
+  }
+  console.log('[sentiment]', event);
+}
+
+function summarizeFallbackParse(text: string): Record<string, unknown> {
+  const extracted = extractFirstJSONObject(text);
+  const candidate = extracted ?? text;
+  const trimmed = text.trim();
+  const candidateTrimmed = candidate.trim();
+
+  return {
+    responseLength: text.length,
+    trimmedResponseLength: trimmed.length,
+    startsWithCodeFence: trimmed.startsWith('```'),
+    extractedJSONObject: extracted !== null,
+    candidateLength: candidate.length,
+    candidateFirstChar: candidateTrimmed.length > 0 ? candidateTrimmed.charAt(0) : null,
+    containsOpenBrace: text.includes('{'),
+    containsCloseBrace: text.includes('}'),
+  };
+}
 
 function normalizeLabel(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z\s-]/g, '').replace(/\s+/g, ' ');
@@ -524,7 +564,9 @@ export function useSentimentAnalyzer() {
     setIsAnalyzing(true);
 
     try {
+      logSentimentDebug('analyze_start', { inputLength: text.length });
       const availability = await getTextModelAvailability();
+      logSentimentDebug('model_availability', availability as Record<string, unknown>);
       if (availability.status !== 'available') {
         throw new Error(
           `Apple Intelligence not available: ${availability.reasonCode ?? 'unknown'}`
@@ -550,7 +592,11 @@ export function useSentimentAnalyzer() {
           confidence: normalizeConfidence(response.object.confidence),
           anonymizedText: normalizeAnonymizedText(response.object.anonymizedText, text, emotions),
         });
-      } catch {
+        logSentimentDebug('object_strategy_success');
+      } catch (objectError) {
+        logSentimentDebug('object_strategy_failed', {
+          error: getErrorMessage(objectError),
+        });
         const response = await generateText({
           prompt: text,
           instructions: SENTIMENT_PROMPT,
@@ -559,15 +605,34 @@ export function useSentimentAnalyzer() {
         });
 
         setRaw({ strategy: 'text-fallback', value: response.text });
-        setResult(parseStructuredSentiment(response.text, text));
+        const parseSummary = summarizeFallbackParse(response.text);
+        logSentimentDebug('text_fallback_received', parseSummary);
+
+        try {
+          setResult(parseStructuredSentiment(response.text, text));
+          logSentimentDebug('text_fallback_parse_success');
+        } catch (parseError) {
+          logSentimentDebug('text_fallback_parse_failed', {
+            ...parseSummary,
+            error: getErrorMessage(parseError),
+          });
+          throw new SentimentFallbackParseError(
+            `Sentiment fallback returned non-JSON output. Open Debug -> sentiment + privacy to inspect raw model output. (${getErrorMessage(parseError)})`
+          );
+        }
       }
     } catch (e) {
+      logSentimentDebug('analyze_failed', {
+        error: getErrorMessage(e),
+        type: e instanceof Error ? e.name : typeof e,
+      });
       setError(
         e instanceof Error
           ? e.message
           : 'Sentiment analysis failed to return a usable result'
       );
     } finally {
+      logSentimentDebug('analyze_done');
       setIsAnalyzing(false);
     }
   }, []);

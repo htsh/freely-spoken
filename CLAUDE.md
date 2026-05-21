@@ -8,7 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 iOS-only Expo / React Native app that records audio, transcribes it on-device with Apple Speech, and runs sentiment + emotion classification plus transcript anonymization through Apple's on-device Foundation Models LLM. Only the on-device-anonymized text + sentiment metadata leave the device, to a hosted FastAPI backend (`server/`) that picks a canonical reference (a Bible verse for the Christian variant) and fetches the canonical text from a trusted source. There is no Android support, no persistent storage, no chat or session memory.
 
+## Branding
+
+The Christian version of this app is being released as **Freely Spoken** (display name: "Freely Spoken", handle/bundle ID slug: `freelyspoken`). The domain `freelyspoken.com` is secured. The current repo name (`mic-check`) is a working name and may be renamed to match later. When writing copy, UI strings, or App Store metadata for the Christian variant, use "Freely Spoken" as the product name.
+
 ## Commands
+
+Device app:
 
 ```bash
 npm install
@@ -17,7 +23,18 @@ npx expo run:ios --device   # build native project, install on connected device,
 npm run lint                # eslint via expo-config
 ```
 
-There are no tests.
+Server (`server/`, FastAPI deployed to Fly.io):
+
+```bash
+cd server
+cp .env.example .env        # fill GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, LOOKUP_CLIENT_SECRET
+pip install -e .
+uvicorn app.main:app --reload --port 8080
+```
+
+See `server/README.md` for the full endpoint contract, env-var table, and Fly deploy notes.
+
+No automated tests. Verification is via `tools/sentiment-cli/` (prompt sweeps), `tools/lookup-harness/` (selection prompts + provider behavior), and end-to-end device runs — see `docs/debug-testing.md` for the matrix.
 
 This app **cannot run in Expo Go** — it depends on three native modules (`expo-av`, `expo-speech-recognition`, `@ratley/react-native-apple-foundation-models`). Always go through `expo run:ios --device`. Simulators won't help: `requiresOnDeviceRecognition: true` and Apple Intelligence both need real hardware (iPhone 15 Pro / 16 series, iOS 26+, Apple Intelligence enabled in Settings).
 
@@ -34,6 +51,8 @@ The whole user flow is one screen (`app/index.tsx`) driving an `idle → recordi
 
 The `processing` state covers transcription + sentiment; `responseLookup` is the off-device network step (separated so loading copy + error handling are explicit). Three effects in `app/index.tsx` advance the machine: transcript done → run sentiment; sentiment done → run lookup; lookup settled → render results. If you add a new pipeline step, follow the same pattern: a hook with `{ result, isX, error, run, reset }` plus an effect in `index.tsx`.
 
+`docs/architecture-review-2026-05-16.md` is the most recent deepening review — read it before broad refactors to the sentiment pipeline, state machine, or privacy guard.
+
 ### Privacy boundary
 
 The on-device side runs sentiment + anonymization with Apple Foundation Models. **Only the anonymized text + sentiment metadata (`{appVariant, anonymizedText, sentiment, emotions, confidence}`) leave the device.** No audio, transcript, audio file path, recording duration, or device identifiers are ever sent. The lookup client (`services/lookup-client.ts`) is the only network egress in the app — anything new that hits the network goes through there or it breaks the privacy posture.
@@ -42,7 +61,7 @@ The on-device side runs sentiment + anonymization with Apple Foundation Models. 
 
 FastAPI service deployed to Fly.io. Sole endpoint that does work is `POST /lookup`. Receives the anonymized payload, scans for crisis keywords (informational `crisisFlag` only — no LLM prompt branching), dispatches by `appVariant` to a registered adapter:
 
-- **Christian** (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical verse text from the configured Bible API (`server/app/lookup/bible_api.py`, default `bible-api.com`, World English Bible) for each reference before responding. LLM output is never returned as scripture text. Per-reference Bible API failures populate `textError`; the whole response only fails when *every* fetch fails.
+- **Christian** (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical verse text from the configured Bible API (`server/app/lookup/bible_api.py`, default `bible-api.com`, World English Bible) for each reference before responding. LLM output is never returned as scripture text. Per-reference Bible API failures populate `textError`; the whole response only fails when _every_ fetch fails.
 - **Stoic** — stub adapter returns `{ status: "not_implemented", appVariant: "stoic" }` until the catalog is seeded.
 
 Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py` — providers do one-shot calls and raise typed errors; the runner handles immediate fallback on 429, bounded jittered retries on transient failures, and `AllProvidersFailedError` when the chain is exhausted.
@@ -56,7 +75,7 @@ The Mac-local harness (`tools/lookup-harness/`) is still the right place to iter
 The next product direction is **three ordered versions**, each sharing the privacy-first pipeline (record → transcribe → analyze/anonymize on device; only anonymized text leaves the device) and differing only in the response layer:
 
 1. **Christian (v1)** — first commit. LLM selects a Bible verse reference; app fetches canonical verse text from a Bible API.
-2. **Stoic (v2)** — second commit. LLM selects a passage ID from a curated Stoic catalog (Epictetus *Enchiridion* + Marcus Aurelius *Meditations*); backend returns stored canonical text. Catalog curation and response framing are governed by `docs/stoic-curation-rubric.md` — the "Stoic but not bro-Stoic" rules are load-bearing for this version's tone.
+2. **Stoic (v2)** — second commit. LLM selects a passage ID from a curated Stoic catalog (Epictetus _Enchiridion_ + Marcus Aurelius _Meditations_); backend returns stored canonical text. Catalog curation and response framing are governed by `docs/stoic-curation-rubric.md` — the "Stoic but not bro-Stoic" rules are load-bearing for this version's tone.
 3. **Open slot (v3)** — Zen koans are no longer the committed v3. Top concrete-short-passage candidates are listed in `docs/other_wisdom_sources.md` (Dhammapada, Tao Te Ching, Pirkei Avot, Analects). Zen remains a candidate only if reshaped from koans to a more concrete form.
 
 The product shape v1 and v2 are pulling toward is **"short, concrete passage."** This is a provisional criterion — validate it against real responses before treating it as decided.
@@ -109,3 +128,21 @@ See `docs/debug-testing.md` for the full test matrix, fixture workflows, end-to-
 - Routing is `expo-router` file-based (`app/_layout.tsx` is the root Stack, `app/index.tsx` is the home screen). `typedRoutes` and `reactCompiler` are both enabled in `app.json`.
 - New Architecture is on (`newArchEnabled: true`) — required by the Foundation Models bridge.
 - Theming goes through `ThemedText` / `ThemedView` + `useThemeColor` against `constants/theme.ts`. Match this pattern instead of hardcoding colors when adding new UI.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `htsh/mic-check`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default canonical labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`CONTEXT.md` + `docs/adr/` at repo root, populated lazily — neither exists yet; proceed silently if absent). See `docs/agents/domain.md`.
+
+### Launch artifacts
+
+`docs/testflight-launch-checklist.md` and `docs/privacy-policy.md` are load-bearing for the App Store / TestFlight push for **Freely Spoken**. Update both when changing data-collection behavior or release scope.

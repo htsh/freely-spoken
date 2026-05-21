@@ -37,6 +37,9 @@ export type StoicStubResult = {
 
 export type LookupResult = ChristianLookupResult | StoicStubResult;
 
+const CLIENT_REQUEST_ID_HEADER = 'X-Client-Request-ID';
+const SERVER_REQUEST_ID_HEADER = 'X-Lookup-Request-ID';
+
 export class MissingLookupApiUrlError extends Error {
   constructor() {
     super(
@@ -45,6 +48,27 @@ export class MissingLookupApiUrlError extends Error {
     );
     this.name = 'MissingLookupApiUrlError';
   }
+}
+
+function logLookupDebug(event: string, details?: Record<string, unknown>): void {
+  if (!__DEV__) {
+    return;
+  }
+  if (details) {
+    console.log('[lookup]', event, details);
+    return;
+  }
+  console.log('[lookup]', event);
+}
+
+function buildClientRequestId(): string {
+  return `ios-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function buildCorrelationSuffix(clientRequestId: string, serverRequestId?: string | null): string {
+  return serverRequestId
+    ? ` [clientRequestId=${clientRequestId}; serverRequestId=${serverRequestId}]`
+    : ` [clientRequestId=${clientRequestId}]`;
 }
 
 export class LookupError extends Error {
@@ -61,11 +85,28 @@ export class LookupError extends Error {
 function readConfig(key: string): string | undefined {
   const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
   const value = extra?.[key];
-  if (typeof value !== 'string') return undefined;
-  // EAS substitutes $EXPO_PUBLIC_* at build time. If a placeholder leaks
-  // through unmodified, treat it as unset rather than sending "$..." as a URL.
-  if (value.startsWith('$')) return undefined;
-  return value || undefined;
+  const fromExtra = typeof value === 'string' ? value.trim() : '';
+
+  // app.json may still expose literal "$EXPO_PUBLIC_*" placeholders in some
+  // local native run flows. Prefer concrete extra values, then fall back to
+  // EXPO_PUBLIC_* variables in JS bundle.
+  if (fromExtra && !fromExtra.startsWith('$')) {
+    return fromExtra;
+  }
+
+  const envKeyByExtraKey: Partial<Record<string, keyof NodeJS.ProcessEnv>> = {
+    lookupApiUrl: 'EXPO_PUBLIC_LOOKUP_API_URL',
+    lookupClientSecret: 'EXPO_PUBLIC_LOOKUP_CLIENT_SECRET',
+    appVariant: 'EXPO_PUBLIC_APP_VARIANT',
+  };
+  const envKey = envKeyByExtraKey[key];
+  if (!envKey) return undefined;
+
+  const fromEnv = process.env[envKey];
+  if (typeof fromEnv !== 'string') return undefined;
+  const trimmedEnv = fromEnv.trim();
+  if (!trimmedEnv || trimmedEnv.startsWith('$')) return undefined;
+  return trimmedEnv;
 }
 
 export function isStoicStub(result: LookupResult): result is StoicStubResult {
@@ -78,29 +119,65 @@ export async function lookupSpiritualResponse(req: LookupRequest): Promise<Looku
     throw new MissingLookupApiUrlError();
   }
   const secret = readConfig('lookupClientSecret');
+  const clientRequestId = buildClientRequestId();
+  const endpoint = `${url.replace(/\/$/, '')}/lookup`;
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (secret) headers['X-Lookup-Client-Secret'] = secret;
+  headers[CLIENT_REQUEST_ID_HEADER] = clientRequestId;
+
+  logLookupDebug('request_start', {
+    clientRequestId,
+    endpoint,
+    appVariant: req.appVariant,
+    sentiment: req.sentiment,
+    emotions: req.emotions,
+    confidence: req.confidence,
+    anonymizedTextLength: req.anonymizedText.length,
+  });
 
   let response: Response;
   try {
-    response = await fetch(`${url.replace(/\/$/, '')}/lookup`, {
+    response = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(req),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : 'network error';
-    throw new LookupError('network_error', message, 0);
+    logLookupDebug('request_network_error', {
+      clientRequestId,
+      error: message,
+    });
+    throw new LookupError(
+      'network_error',
+      `${message}${buildCorrelationSuffix(clientRequestId, null)}`,
+      0
+    );
   }
+
+  const serverRequestId = response.headers.get(SERVER_REQUEST_ID_HEADER);
+  const responseText = await response.text();
+  logLookupDebug('response_received', {
+    clientRequestId,
+    serverRequestId,
+    status: response.status,
+    bodyLength: responseText.length,
+  });
 
   let body: unknown;
   try {
-    body = await response.json();
+    body = JSON.parse(responseText) as unknown;
   } catch {
+    logLookupDebug('response_parse_failed', {
+      clientRequestId,
+      serverRequestId,
+      status: response.status,
+      firstNonWhitespaceChar: responseText.trim().charAt(0) || null,
+    });
     throw new LookupError(
       'bad_response',
-      `Lookup server returned non-JSON (HTTP ${response.status})`,
+      `Lookup server returned non-JSON (HTTP ${response.status})${buildCorrelationSuffix(clientRequestId, serverRequestId)}`,
       response.status,
     );
   }
@@ -109,9 +186,25 @@ export async function lookupSpiritualResponse(req: LookupRequest): Promise<Looku
     const err = (body as { error?: { code?: string; message?: string } })?.error;
     const code = err?.code ?? 'unknown';
     const message = err?.message ?? `HTTP ${response.status}`;
-    throw new LookupError(code, message, response.status);
+    logLookupDebug('response_error', {
+      clientRequestId,
+      serverRequestId,
+      status: response.status,
+      code,
+      message,
+    });
+    throw new LookupError(
+      code,
+      `${message}${buildCorrelationSuffix(clientRequestId, serverRequestId)}`,
+      response.status
+    );
   }
 
+  logLookupDebug('response_ok', {
+    clientRequestId,
+    serverRequestId,
+    status: response.status,
+  });
   return body as LookupResult;
 }
 
