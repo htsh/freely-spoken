@@ -46,7 +46,7 @@ The processing cue should feel like a privacy pipeline, not a generic spinner. U
 - Removing identifying details
 - Preparing private summary
 
-The review screen should avoid showing raw transcript by default. Raw transcript can remain in the final debug/result surface for now because the current app is still in internal testing, but the pre-lookup review must center the anonymized text.
+The review screen should avoid showing raw transcript by default. Raw transcript, sentiment JSON, and provider metadata are diagnostic surfaces only and should render only in dev builds. The pre-lookup review must center the anonymized text.
 
 ## Verification
 

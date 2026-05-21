@@ -76,6 +76,8 @@ When changing the prompt, schema, aliases, anonymization rules, or model package
 - **`tools/sentiment-cli/run-anonymization-samples.sh`** — runs 20 privacy-heavy samples through the Swift CLI with `--raw`. Use this to catch privacy guard regressions after changing anonymization rules.
 - **`tools/lookup-harness/`** — Mac-local FastAPI web app (`./start.sh`, http://localhost:8000) that exercises the text half of the production pipeline: shells out to the Swift `sentiment-cli` for sentiment + anonymization, then calls a hosted provider for passage selection. This is the intended place to iterate selection prompts before phone-side implementation.
 
+Release/TestFlight builds must not expose debug affordances: no `/debug` access, raw transcript, sentiment JSON, guarded-anonymous debug block, provider/model name, fallback status, or retry count in the app UI.
+
 See `docs/debug-testing.md` for the full test matrix, fixture workflows, and end-to-end device checklist.
 
 ## Conventions

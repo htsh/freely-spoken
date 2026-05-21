@@ -355,12 +355,14 @@ export default function HomeScreen() {
               </ThemedView>
             ) : null}
 
-            {transcript ? (
+            {__DEV__ && transcript && (
               <>
                 <ThemedText type="subtitle" style={styles.sectionHeading}>Transcript</ThemedText>
                 <ThemedText style={styles.transcript}>{transcript}</ThemedText>
               </>
-            ) : (
+            )}
+
+            {!transcript && !lookupResult && !lookupError && (
               <ThemedText style={styles.hint}>No speech detected</ThemedText>
             )}
 
@@ -368,7 +370,7 @@ export default function HomeScreen() {
               <ThemedText style={styles.errorText}>{transcribeError}</ThemedText>
             )}
 
-            {sentimentResult && (
+            {__DEV__ && sentimentResult && (
               <>
                 <ThemedText type="subtitle" style={styles.sectionHeading}>
                   Sentiment JSON
@@ -585,7 +587,7 @@ function LookupResultBlock({
         </View>
       )}
 
-      <ProviderBadge result={result} />
+      {__DEV__ && <ProviderBadge result={result} />}
     </View>
   );
 }

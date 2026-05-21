@@ -247,20 +247,27 @@ This eliminates ~90% of potential testers. Be explicit about this in your beta i
 
 | Flow | Expected |
 |---|---|
-| Record audio → stop | Transcript appears |
-| Transcript present → sentiment analysis | Sentiment JSON + guarded anonymous version appears |
-| Sentiment done → verse lookup | Primary verse + 2 alternates appear |
+| Record audio → stop | Private processing cue appears |
+| Anonymization completes | Review screen shows the anonymized summary that will leave the device |
+| Tap "Find My Verse" | Primary verse + 2 alternates appear |
 | Tap primary verse | Full verse text renders |
 | Tap "Record Again" | Clears everything, back to idle |
 | No network connection | Graceful error, not a crash |
 | Apple Intelligence unavailable | Clear error message, not infinite spinner |
 
+Release/TestFlight builds should not show the dev-only debug link, raw transcript, sentiment JSON, guarded-anonymous debug block, provider name, model name, fallback status, or retry count.
+
 ### Log verification
 
-Have testers report:
-- Which provider served the verse (`provider` field in response)
-- If `fallbackUsed: true` (indicates free chain is under pressure)
-- Any `AllProvidersFailedError` or long delays (>10s)
+Have testers report user-visible symptoms only:
+- Whether lookup succeeds after tapping `Find My Verse`
+- Any long delays over 10 seconds
+- Any user-facing lookup error text
+
+Provider diagnostics should come from backend logs or dev builds, not TestFlight UI:
+- Which provider served the verse
+- Whether fallback was used
+- Retry count and `AllProvidersFailedError` events
 
 ---
 
@@ -272,7 +279,7 @@ Have testers report:
 | `MissingLookupApiUrlError` | `EXPO_PUBLIC_LOOKUP_API_URL` not set at build time. Rebuild with `.env` file present. |
 | Backend 401 | `EXPO_PUBLIC_LOOKUP_CLIENT_SECRET` mismatched with server `LOOKUP_CLIENT_SECRET` |
 | Backend 500 / timeout | Free provider chain exhausted. Check server logs for `AllProvidersFailedError`. |
-| Transcript never appears | iOS 26 beta or Apple Intelligence not enabled on device |
+| Private processing stalls or no review summary appears | iOS 26 beta or Apple Intelligence not enabled on device |
 | App crashes on recording | Microphone permission not granted. Check Settings → mic-check → Microphone. |
 | TestFlight invite not received | Tester email must match Apple ID exactly. Resend from App Store Connect. |
 

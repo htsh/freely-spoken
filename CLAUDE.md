@@ -120,6 +120,8 @@ Off-device affordances for iterating without recording on a phone:
 
 The Swift CLI mirrors the anonymized-text guard and prints both raw model output and guarded anonymized text. Keep the CLI and TypeScript guard rules in sync when changing privacy behavior.
 
+Release/TestFlight builds must not expose debug affordances: no `/debug` access, raw transcript, sentiment JSON, guarded-anonymous debug block, provider/model name, fallback status, or retry count in the app UI.
+
 See `docs/debug-testing.md` for the full test matrix, fixture workflows, end-to-end device checklist, and the prompt/schema change checklist (the 5-step sequence to follow when editing `SENTIMENT_PROMPT`, `SENTIMENT_SCHEMA`, aliases, or anonymization rules).
 
 ## Conventions

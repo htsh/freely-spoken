@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
@@ -14,6 +14,14 @@ const FIXTURES = [
 ];
 
 export default function DebugScreen() {
+  if (!__DEV__) {
+    return <Redirect href="/" />;
+  }
+
+  return <DebugScreenContent />;
+}
+
+function DebugScreenContent() {
   const colorScheme = useColorScheme() ?? 'light';
   const [text, setText] = useState('');
   const { result, raw, isAnalyzing, error, analyze, reset } = useSentimentAnalyzer();

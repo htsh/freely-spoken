@@ -73,7 +73,7 @@ There is no automated test suite yet. Start with:
 npm run lint
 ```
 
-For sentiment and anonymization iteration without recording audio, use the dev-only `Debug -> sentiment + privacy` link on the home screen. It opens `/debug`, runs the production sentiment hook, and shows normalized results, anonymized text, and raw model output.
+For sentiment and anonymization iteration without recording audio, use the dev-only `Debug -> sentiment + privacy` link on the home screen. It opens `/debug`, runs the production sentiment hook, and shows normalized results, anonymized text, and raw model output. Release/TestFlight builds hide the link and redirect direct `/debug` navigation back home.
 
 For faster prompt checks on macOS, use the Swift CLI:
 

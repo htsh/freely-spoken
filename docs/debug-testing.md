@@ -29,7 +29,7 @@ Do not edit generated `ios/` files as the durable source of truth. Put persisten
 
 ## Test Sentiment Without Recording
 
-Use the debug route when you want to test the same React hook used by the app without recording audio.
+Use the debug route when you want to test the same React hook used by the app without recording audio. The route is dev-only: release/TestFlight builds hide the home-screen link and redirect direct `/debug` navigation back home.
 
 1. Start a dev native build:
 
@@ -129,10 +129,13 @@ Use this path before considering recording, speech recognition, or end-to-end UX
 4. Verify:
 
    - The app leaves `recording` after stop.
-   - A transcript appears, or a clear transcription error appears.
-   - `Sentiment JSON` appears for non-empty transcripts.
-   - `Guarded anonymous version` keeps the broad concern and emotion but removes names, exact places, organizations, dates, and other identifying details.
+   - Private processing appears after recording stops.
+   - The review screen shows the anonymized summary before lookup.
+   - The anonymized summary keeps the broad concern and emotion but removes names, exact places, organizations, dates, and other identifying details.
+   - Tapping `Find My Verse` starts lookup and returns a passage.
    - `Record Again` resets transcript, sentiment, and errors.
+
+In dev builds only, the final results screen also shows transcript, sentiment JSON, and the guarded anonymous version for diagnostics. Release/TestFlight builds hide those debug sections.
 
 ## Prompt / Schema Change Checklist
 
