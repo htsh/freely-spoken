@@ -16,7 +16,7 @@ Before building the app, verify the deployed backend is healthy and the free pro
 ```bash
 curl -X POST https://verses.hitesh.nyc/lookup \
   -H "Content-Type: application/json" \
-  -H "X-Client-Secret: $LOOKUP_CLIENT_SECRET" \
+  -H "X-Lookup-Client-Secret: $LOOKUP_CLIENT_SECRET" \
   -d '{
     "appVariant": "christian",
     "anonymizedText": "A person is feeling anxious about an upcoming medical procedure.",
@@ -39,7 +39,7 @@ If the backend is unhealthy, fix it before burning build minutes.
 
 ## 2. Environment variables for the build
 
-Create `.env` in the repo root with production values:
+For local builds, create `.env` in the repo root with production values:
 
 ```bash
 EXPO_PUBLIC_LOOKUP_API_URL=https://verses.hitesh.nyc
@@ -47,13 +47,31 @@ EXPO_PUBLIC_LOOKUP_CLIENT_SECRET=<your-lookup-client-secret>
 EXPO_PUBLIC_APP_VARIANT=christian
 ```
 
-**Important:** These are baked into the native build at build time via `app.json` `extra`. Changing them requires a rebuild.
+For EAS cloud/TestFlight builds, create matching EAS environment variables in the `production` environment:
+
+```bash
+eas env:create --name EXPO_PUBLIC_LOOKUP_API_URL --value https://verses.hitesh.nyc --environment production --visibility plaintext
+eas env:create --name EXPO_PUBLIC_LOOKUP_CLIENT_SECRET --value <your-lookup-client-secret> --environment production --visibility sensitive
+eas env:create --name EXPO_PUBLIC_APP_VARIANT --value christian --environment production --visibility plaintext
+```
+
+**Important:** These are baked into the native build at build time via `app.config.js` `extra`. Changing them requires a rebuild. Client-side values are readable from the app binary, so do not treat `EXPO_PUBLIC_LOOKUP_CLIENT_SECRET` as a true server secret.
 
 ---
 
 ## 3. EAS configuration
 
-### Install EAS CLI
+### Helper package
+
+Expo's current one-command helper is:
+
+```bash
+npx testflight
+```
+
+It walks through EAS project setup, bundle ID confirmation, Apple Developer login, signing credentials, production build, App Store Connect API key setup, and TestFlight submission.
+
+### Install EAS CLI directly
 
 ```bash
 npm install -g eas-cli
@@ -65,51 +83,18 @@ npm install -g eas-cli
 eas login
 ```
 
-### Create `eas.json`
+### Verify `eas.json`
 
-```bash
-cat > eas.json << 'EOF'
-{
-  "cli": {
-    "version": ">= 10.0.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": {
-        "buildType": "developmentClient"
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "ios": {
-        "buildConfiguration": "Release"
-      }
-    },
-    "production": {
-      "distribution": "store",
-      "ios": {
-        "buildConfiguration": "Release"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "ascAppId": "<your-app-store-connect-app-id>",
-        "ascTeamId": "<your-team-id>"
-      }
-    }
-  }
-}
-EOF
-```
+The repo includes `eas.json` with:
+- `production` build profile: iOS store/TestFlight build, release configuration, `production` EAS environment.
+- `preview` build profile: internal distribution, release configuration, `preview` EAS environment.
+- Empty `submit.production.ios` profile: usable interactively by `npx testflight` or `eas submit`; add `ascAppId` after creating the App Store Connect app if you want more non-interactive runs.
 
 **Notes:**
-- `preview` = internal distribution (share via link, no TestFlight)
+- `preview` = EAS internal distribution (share via link, no TestFlight)
 - `production` = TestFlight / App Store
-- Fill in `ascAppId` and `ascTeamId` after registering the app in App Store Connect
+- Fill in `ascAppId` after registering the app in App Store Connect if you want to skip the app-selection prompt.
+- Increment `ios.buildNumber` in `app.json` before submitting a replacement build with the same `version`.
 
 ### Verify project is linked
 
@@ -168,6 +153,16 @@ Open `ios/miccheck.xcworkspace` in Xcode:
 
 ## 6. Build for TestFlight
 
+Recommended first run:
+
+```bash
+npx testflight
+```
+
+This is the helper package for the whole build/sign/submit flow.
+
+Manual EAS equivalent:
+
 ```bash
 eas build --platform ios --profile production
 ```
@@ -216,6 +211,7 @@ Since this app records audio and sends anonymized text to a server, you need a p
 - How to contact you for data deletion (even though nothing is stored)
 
 Host this at a URL and link it in App Store Connect.
+Before external beta or public review, also add an easily accessible in-app privacy-policy link.
 
 ---
 

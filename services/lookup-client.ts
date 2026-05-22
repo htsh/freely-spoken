@@ -39,6 +39,11 @@ export type LookupResult = ChristianLookupResult | StoicStubResult;
 
 const CLIENT_REQUEST_ID_HEADER = 'X-Client-Request-ID';
 const SERVER_REQUEST_ID_HEADER = 'X-Lookup-Request-ID';
+const ENV_CONFIG: Record<string, string | undefined> = {
+  lookupApiUrl: process.env.EXPO_PUBLIC_LOOKUP_API_URL,
+  lookupClientSecret: process.env.EXPO_PUBLIC_LOOKUP_CLIENT_SECRET,
+  appVariant: process.env.EXPO_PUBLIC_APP_VARIANT,
+};
 
 export class MissingLookupApiUrlError extends Error {
   constructor() {
@@ -94,15 +99,7 @@ function readConfig(key: string): string | undefined {
     return fromExtra;
   }
 
-  const envKeyByExtraKey: Partial<Record<string, keyof NodeJS.ProcessEnv>> = {
-    lookupApiUrl: 'EXPO_PUBLIC_LOOKUP_API_URL',
-    lookupClientSecret: 'EXPO_PUBLIC_LOOKUP_CLIENT_SECRET',
-    appVariant: 'EXPO_PUBLIC_APP_VARIANT',
-  };
-  const envKey = envKeyByExtraKey[key];
-  if (!envKey) return undefined;
-
-  const fromEnv = process.env[envKey];
+  const fromEnv = ENV_CONFIG[key];
   if (typeof fromEnv !== 'string') return undefined;
   const trimmedEnv = fromEnv.trim();
   if (!trimmedEnv || trimmedEnv.startsWith('$')) return undefined;

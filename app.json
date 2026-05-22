@@ -11,9 +11,12 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSSpeechRecognitionUsageDescription": "Allow Freely Spoken to use speech recognition to transcribe your recordings.",
-        "NSMicrophoneUsageDescription": "Allow Freely Spoken to access your microphone."
+        "NSMicrophoneUsageDescription": "Allow Freely Spoken to access your microphone.",
+        "NSPhotoLibraryUsageDescription": "Freely Spoken does not use your photo library. This permission description is included because a bundled library references photo library APIs."
       },
+      "buildNumber": "2",
       "bundleIdentifier": "com.htsh.miccheck"
     },
     "android": {
@@ -61,7 +64,8 @@
           "microphonePermission": "Allow Freely Spoken to access your microphone.",
           "speechRecognitionPermission": "Allow Freely Spoken to use speech recognition to transcribe your recordings."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
