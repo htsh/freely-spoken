@@ -64,11 +64,13 @@ FastAPI service deployed to Fly.io. Sole endpoint that does work is `POST /looku
 - **Christian** (`server/app/lookup/christian.py`) — LLM picks 1 primary + 2 alternate Bible references, server fetches canonical verse text from the configured Bible API (`server/app/lookup/bible_api.py`, default `bible-api.com`, World English Bible) for each reference before responding. LLM output is never returned as scripture text. Per-reference Bible API failures populate `textError`; the whole response only fails when _every_ fetch fails.
 - **Stoic** — stub adapter returns `{ status: "not_implemented", appVariant: "stoic" }` until the catalog is seeded.
 
-Provider chain (Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`) lives in `server/app/llm_runner.py` — providers do one-shot calls and raise typed errors; the runner handles immediate fallback on 429, bounded jittered retries on transient failures, and `AllProvidersFailedError` when the chain is exhausted.
+Provider chain default is Gemini Flash → OpenRouter free → Groq, configurable via `LOOKUP_PROVIDER_ORDER`. The runner registry in `server/app/llm_runner.py` also supports Cloudflare, Together, and Cerebras — selectable by listing them in the env var. Providers do one-shot calls and raise typed errors; the runner handles immediate fallback on 429, bounded jittered retries on transient failures, and `AllProvidersFailedError` when the chain is exhausted.
 
 Device config lives in `app.json` `extra` (`lookupApiUrl`, `lookupClientSecret`, `appVariant`), sourced from `EXPO_PUBLIC_LOOKUP_API_URL` / `EXPO_PUBLIC_LOOKUP_CLIENT_SECRET` / `EXPO_PUBLIC_APP_VARIANT` at build time. If `lookupApiUrl` is unset, the device throws `MissingLookupApiUrlError` before any network call — this is also the emergency-rollback path (a build without the URL falls back to the previous on-device-only flow).
 
 The Mac-local harness (`tools/lookup-harness/`) is still the right place to iterate prompts and provider behavior — faster cycle than redeploying. The production code lives in `server/`. **When changing prompts or adapters, port the change to both** (or document the divergence intentionally). Treat `server/` as the source of truth for production behavior.
+
+**Free chain is primary.** Home GPU is planned as last-resort overflow only — see `docs/superpowers/home-gpu-overflow-plan.md` for the 3060/3090 Ti setup. Don't propose wiring it in until the free-tier providers prove insufficient.
 
 ### Planned hosted response direction
 
@@ -148,3 +150,7 @@ Single-context layout (`CONTEXT.md` + `docs/adr/` at repo root, populated lazily
 ### Launch artifacts
 
 `docs/testflight-launch-checklist.md` and `docs/privacy-policy.md` are load-bearing for the App Store / TestFlight push for **Freely Spoken**. Update both when changing data-collection behavior or release scope.
+
+## OpenSpec workflow
+
+This repo uses an experimental OpenSpec change-management workflow for larger changes. The `/openspec-propose`, `/openspec-apply`, `/openspec-explore`, and `/openspec-archive` skills drive the `openspec` CLI through structured artifacts (`proposal.md`, `design.md`, `tasks.md`) under `openspec/`. Use this workflow when the user invokes one of those commands or asks to propose, apply, or archive an OpenSpec change. The parallel `opsx-*` commands in `.opencode/commands/` are the OpenCode-side mirror.
