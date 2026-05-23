@@ -74,6 +74,7 @@ __pycache__/
 tools/sentiment-cli/output.txt
 
 # Local agent tooling (per-developer, not project state)
+.superpowers/
 .claude/
 .codex/
 .opencode/
