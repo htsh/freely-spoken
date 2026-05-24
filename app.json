@@ -16,7 +16,7 @@
         "NSMicrophoneUsageDescription": "Allow Freely Spoken to access your microphone.",
         "NSPhotoLibraryUsageDescription": "Freely Spoken does not use your photo library. This permission description is included because a bundled library references photo library APIs."
       },
-      "buildNumber": "3",
+      "buildNumber": "4",
       "bundleIdentifier": "com.htsh.miccheck"
     },
     "android": {
