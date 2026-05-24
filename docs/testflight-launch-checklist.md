@@ -1,11 +1,19 @@
 # TestFlight Launch Checklist
 
-**Goal:** Get `mic-check` onto TestFlight for internal beta testing using the free provider chain.
+**Goal:** Test `mic-check` on a real iPhone, ship repeat TestFlight builds, and prepare the same production build path for App Store review.
 
 **Assumptions:**
 - Backend is deployed and serving at `verses.hitesh.nyc`
 - Bible API is accessible at `bible.hitesh.nyc` or via `bible-api.com`
 - You have an Apple Developer account ($99/year, required for TestFlight)
+
+This document covers three separate paths:
+
+| Path | Use it for | Uploads to App Store Connect? |
+|---|---|---|
+| Local device build | Fast testing on your own phone from Xcode/Expo CLI | No |
+| EAS production build + submit | TestFlight and App Store Connect processing | Yes |
+| App Store review submission | Public release after TestFlight validation | Uses an already uploaded build |
 
 ---
 
@@ -59,7 +67,73 @@ eas env:create --name EXPO_PUBLIC_APP_VARIANT --value christian --environment pr
 
 ---
 
-## 3. EAS configuration
+## 3. Test locally on your phone without EAS Build
+
+Use this for development and release-candidate smoke testing before spending EAS build time. It builds on your Mac with Xcode and installs directly to a connected device. It does **not** create a TestFlight build and it does **not** upload anything to App Store Connect.
+
+This app cannot run in Expo Go because it uses native modules for audio, speech recognition, and Apple Foundation Models.
+
+### One-time device setup
+
+- Install Xcode and open it once so it can install command-line components.
+- Connect the iPhone by USB or pair it in Xcode.
+- Trust the Mac on the phone.
+- Enable Developer Mode on the phone: Settings -> Privacy & Security -> Developer Mode.
+- Make sure the phone is Apple Intelligence-capable, running iOS 26+, and has Apple Intelligence enabled.
+- If signing fails, open `ios/miccheck.xcworkspace`, select the app target, and set your Apple Developer team under Signing & Capabilities.
+
+### Normal local dev build
+
+```bash
+npm install
+npx expo prebuild
+npx expo run:ios --device
+```
+
+`npx expo run:ios --device` builds the generated Xcode project, prompts for a connected device, installs the app, launches it, and starts Metro. This is the fastest way to test recording, on-device transcription, anonymization, and lookup on your own phone.
+
+### When native config changed
+
+Run prebuild again after changing dependencies, Expo plugins, permissions, icons, splash config, `app.json` native settings, or anything else that affects the generated native project:
+
+```bash
+npx expo prebuild
+npx expo run:ios --device
+```
+
+If the generated project looks stale or signing/build settings are confused, regenerate it cleanly:
+
+```bash
+npx expo prebuild --clean
+npx expo run:ios --device --no-build-cache
+```
+
+`ios/` is generated and gitignored, so durable app changes belong in `app.json`, TypeScript, assets, config plugins, or package dependencies, not hand edits inside `ios/`.
+
+### Release-like local smoke test
+
+Before making a TestFlight build, also run a local Release configuration when practical:
+
+```bash
+npx expo run:ios --device --configuration Release
+```
+
+This is still a local install, not an EAS Build. Use it to catch obvious Release-only behavior, especially that `__DEV__` debug affordances are hidden.
+
+### Local smoke checklist
+
+| Check | Expected |
+|---|---|
+| Launch app | No `MissingLookupApiUrlError`; production `.env` values are baked in |
+| Record -> stop | Private processing cue appears |
+| Transcription/anonymization | Review screen shows only anonymized text |
+| Tap "Find My Verse" | Backend returns primary verse + alternates |
+| Airplane mode during lookup | Graceful user-facing error |
+| Release local build | No `/debug` link, raw transcript, provider details, retry count, or fallback status in UI |
+
+---
+
+## 4. EAS configuration
 
 ### Helper package
 
@@ -93,6 +167,7 @@ The repo includes `eas.json` with:
 **Notes:**
 - `preview` = EAS internal distribution (share via link, no TestFlight)
 - `production` = TestFlight / App Store
+- `cli.appVersionSource` is `local`, so App Store version values come from `app.json`.
 - Fill in `ascAppId` after registering the app in App Store Connect if you want to skip the app-selection prompt.
 - Increment `ios.buildNumber` in `app.json` before submitting a replacement build with the same `version`.
 
@@ -106,7 +181,7 @@ Should show `mic-check` with project ID `9af03ee3-2eae-4f5c-b0fe-60200c3bd29d`.
 
 ---
 
-## 4. Native build setup
+## 5. Native build setup
 
 ### Prebuild (generates `ios/`)
 
@@ -122,7 +197,7 @@ In `ios/miccheck.xcodeproj` or `app.json`, confirm:
 
 ---
 
-## 5. iOS signing and provisioning
+## 6. iOS signing and provisioning
 
 This is the most fiddly part. You need:
 
@@ -151,17 +226,81 @@ Open `ios/miccheck.xcworkspace` in Xcode:
 
 ---
 
-## 6. Build for TestFlight
+## 7. Build and submit another TestFlight build
 
-Recommended first run:
+### Version fields
+
+This repo uses local app versioning:
+
+| File field | Apple field | Change when |
+|---|---|---|
+| `expo.version` in `app.json` | `CFBundleShortVersionString` / App Store marketing version | The user-facing release version changes, for example `1.0.0` -> `1.0.1` |
+| `expo.ios.buildNumber` in `app.json` | `CFBundleVersion` / App Store build number | Every TestFlight/App Store upload, even if `expo.version` stays the same |
+
+App Store Connect rejects duplicate builds. If you see "You've already submitted this build of the app," increment `expo.ios.buildNumber`, make a fresh production build, then submit that new build. Do not resubmit an old `.ipa` with the same build number.
+
+For this repo, keep `ios.buildNumber` monotonically increasing and commit the bump before building. `package.json` `version` is not what App Store Connect reads.
+
+### Replacement TestFlight build for the same app version
+
+Example: replacing `1.0.0` build `3` with another `1.0.0` candidate:
+
+```json
+{
+  "expo": {
+    "version": "1.0.0",
+    "ios": {
+      "buildNumber": "4"
+    }
+  }
+}
+```
+
+Then build and submit:
+
+```bash
+npm run lint
+eas build --platform ios --profile production --message "1.0.0 build 4"
+eas build:list --platform ios --limit 5
+eas submit --platform ios --profile production --latest --wait --verbose
+```
+
+Safer submit path when there are multiple recent builds:
+
+```bash
+eas submit --platform ios --profile production --id <eas-build-id> --wait --verbose
+```
+
+Only use `--latest` after confirming the latest iOS production build is the new build number you intend to upload.
+
+### New app version
+
+For a user-facing version bump, increment both fields:
+
+```json
+{
+  "expo": {
+    "version": "1.0.1",
+    "ios": {
+      "buildNumber": "5"
+    }
+  }
+}
+```
+
+Then use the same build/submit commands. The `buildNumber` still moves forward; avoid resetting it.
+
+### One-command helper
+
+Expo's helper can run the whole build/sign/submit flow interactively:
 
 ```bash
 npx testflight
 ```
 
-This is the helper package for the whole build/sign/submit flow.
+The manual commands above are preferred when you want an explicit committed build-number bump. If you use `npx testflight`, inspect `app.json` afterward and commit any version change it makes.
 
-Manual EAS equivalent:
+### Manual EAS build without immediate submit
 
 ```bash
 eas build --platform ios --profile production
@@ -169,18 +308,24 @@ eas build --platform ios --profile production
 
 This queues a cloud build. You can watch progress:
 ```bash
-eas build:list
+eas build:list --platform ios --limit 5
 ```
 
 Build artifacts:
 - `.ipa` file (iOS app package)
-- Automatically submitted to App Store Connect if `submit` is configured
+- Submitted to App Store Connect only when you run `eas submit` or build with `--auto-submit`
 
 **First build** will take **15–30 minutes** (installs CocoaPods, builds native modules, uploads).
 
+To build and submit in one command:
+
+```bash
+eas build --platform ios --profile production --auto-submit --message "1.0.0 build 4"
+```
+
 ---
 
-## 7. App Store Connect setup
+## 8. App Store Connect setup
 
 After the build uploads:
 
@@ -200,6 +345,7 @@ Apple requires for TestFlight:
 - **Screenshots** (optional for internal, required for external)
 - **Beta app description** (what testers should focus on)
 - **Contact email**
+- **App privacy answers** before public submission
 
 ### Privacy policy
 
@@ -215,7 +361,7 @@ Before external beta or public review, also add an easily accessible in-app priv
 
 ---
 
-## 8. Internal testing
+## 9. Internal testing
 
 Once beta review approves (usually **instant for internal**, 1–2 days for external):
 
@@ -226,7 +372,7 @@ Once beta review approves (usually **instant for internal**, 1–2 days for exte
 
 ---
 
-## 9. Device requirements for testers
+## 10. Device requirements for testers
 
 **Critical:** TestFlight users must have:
 - **iPhone 15 Pro / 16 series** OR **M1+ iPad / Mac** (Apple Intelligence capable)
@@ -237,7 +383,7 @@ This eliminates ~90% of potential testers. Be explicit about this in your beta i
 
 ---
 
-## 10. What to test in TestFlight
+## 11. What to test in TestFlight
 
 ### Smoke test matrix
 
@@ -267,7 +413,7 @@ Provider diagnostics should come from backend logs or dev builds, not TestFlight
 
 ---
 
-## 11. Common failures
+## 12. Common failures
 
 | Failure | Fix |
 |---|---|
@@ -278,18 +424,72 @@ Provider diagnostics should come from backend logs or dev builds, not TestFlight
 | Private processing stalls or no review summary appears | iOS 26 beta or Apple Intelligence not enabled on device |
 | App crashes on recording | Microphone permission not granted. Check Settings → mic-check → Microphone. |
 | TestFlight invite not received | Tester email must match Apple ID exactly. Resend from App Store Connect. |
+| EAS submit says the build was already submitted | Increment `expo.ios.buildNumber`, create a fresh production build, then submit the new build ID. |
 
 ---
 
-## 12. From TestFlight to App Store (future)
+## 13. Prepare for App Store submission
 
-When ready for public release:
+App Store release uses the same uploaded production build path as TestFlight. The extra work is App Store Connect metadata, privacy/compliance answers, review notes, and final review submission.
 
-1. Update version in `app.json` (`version` field)
-2. Build with `eas build --platform ios --profile production`
-3. In App Store Connect, select build, fill App Store metadata
-4. Submit for App Review (1–3 days typical)
-5. After approval, release or set phased rollout
+### Code and release readiness
+
+- Full TestFlight smoke pass on an Apple Intelligence-capable real device.
+- `npm run lint` passes.
+- Production backend is healthy and has enough provider capacity for review.
+- `app.json` has the public `expo.version` and a new `expo.ios.buildNumber`.
+- `ITSAppUsesNonExemptEncryption` remains `false` unless the app starts using non-exempt encryption.
+- Release/TestFlight UI exposes no debug affordances: no `/debug` access, raw transcript, sentiment JSON, provider/model name, fallback status, or retry count.
+- Error states are reviewable: Apple Intelligence unavailable, microphone denied, speech recognition denied, network failure, backend failure.
+- Privacy policy is hosted at a stable URL and linked from App Store Connect. Add an in-app privacy-policy link before public review.
+- The App Review build can be used without an account, login, seed data, or reviewer-only setup.
+
+### App Store Connect metadata
+
+Use `docs/marketing/app-store-testflight-copy.md` as the starting copy package. Prepare:
+
+- App name, subtitle, promotional text, description, keywords, support URL, and privacy policy URL.
+- Category, age rating, copyright, pricing, availability, and release mode.
+- Required iPhone screenshots, and iPad screenshots if the app remains marked as tablet-supported.
+- App Privacy answers that match the real payload: audio and raw transcript stay on device; the server receives only `{ appVariant, anonymizedText, sentiment, emotions, confidence }`.
+- Review contact information.
+- App Review notes explaining the device requirements and test flow.
+
+Recommended review note:
+
+```text
+Freely Spoken requires an Apple Intelligence-capable iPhone or iPad running iOS 26+ with Apple Intelligence enabled. No account is required.
+
+Test flow:
+1. Grant microphone and speech recognition permissions.
+2. Tap record, speak a short concern, then stop.
+3. Wait for on-device transcription and anonymization.
+4. Review the anonymized text and tap "Find My Verse."
+5. Confirm that a primary verse and alternate references appear.
+
+Privacy boundary: audio and raw transcript stay on device. The backend receives only appVariant, anonymizedText, sentiment, emotions, and confidence for passage lookup.
+```
+
+### Final submission steps
+
+1. Decide whether this is a replacement build or a new public version.
+2. Update `app.json`:
+   - Replacement build: increment only `expo.ios.buildNumber`.
+   - New public version: increment `expo.version` and `expo.ios.buildNumber`.
+3. Build and submit:
+
+   ```bash
+   npm run lint
+   eas build --platform ios --profile production --message "<version> build <number>"
+   eas submit --platform ios --profile production --id <eas-build-id> --wait --verbose
+   ```
+
+4. Wait for Apple to finish processing the uploaded build.
+5. In App Store Connect, open the app version under the App Store tab.
+6. Select the processed build.
+7. Complete metadata, screenshots, privacy, age rating, pricing, availability, and review notes.
+8. Click **Add for Review**, then submit the draft submission for App Review.
+9. After approval, release manually or use phased release.
 
 ---
 
@@ -297,17 +497,37 @@ When ready for public release:
 
 ```bash
 # Verify backend health
-curl -X POST https://verses.hitesh.nyc/lookup -H "Content-Type: application/json" -H "X-Client-Secret: $SECRET" -d '{...}'
+curl -X POST https://verses.hitesh.nyc/lookup -H "Content-Type: application/json" -H "X-Lookup-Client-Secret: $LOOKUP_CLIENT_SECRET" -d '{...}'
 
 # Local dev build
 npx expo run:ios --device
+
+# Local release-like build
+npx expo run:ios --device --configuration Release
 
 # Cloud build for TestFlight
 eas build --platform ios --profile production
 
 # Check build status
-eas build:list
+eas build:list --platform ios --limit 5
+
+# Submit a specific new build
+eas submit --platform ios --profile production --id <eas-build-id> --wait --verbose
+
+# Build and auto-submit
+eas build --platform ios --profile production --auto-submit --message "<version> build <number>"
 
 # Lint before building
 npm run lint
 ```
+
+## References
+
+- [Expo: `npx testflight` command](https://docs.expo.dev/build-reference/npx-testflight/)
+- [Expo: Submit to the Apple App Store](https://docs.expo.dev/submit/ios/)
+- [Expo: Local app development](https://docs.expo.dev/guides/local-app-development/)
+- [Expo: Local builds](https://docs.expo.dev/build-reference/local-builds/)
+- [Expo: iOS Developer Mode](https://docs.expo.dev/guides/ios-developer-mode/)
+- [Apple: Submit an app](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app)
+- [Apple: App information](https://developer.apple.com/help/app-store-connect/reference/app-information/)
+- [Apple: Upload app previews and screenshots](https://developer.apple.com/help/app-store-connect/manage-app-information/upload-app-previews-and-screenshots)
