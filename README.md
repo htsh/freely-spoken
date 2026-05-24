@@ -89,7 +89,7 @@ cd tools/lookup-harness
 ./start.sh
 ```
 
-See [tools/lookup-harness/README.md](tools/lookup-harness/README.md) for setup details.
+Then open http://localhost:8000. It runs the Swift sentiment CLI (real Foundation Models call) for sentiment + anonymization, then calls your chosen LLM provider for verse selection. API keys are optional — missing keys show a clean lookup error instead of crashing. See [tools/lookup-harness/README.md](tools/lookup-harness/README.md) for setup details.
 
 See [docs/debug-testing.md](docs/debug-testing.md) for the full test matrix, fixture workflow, and end-to-end device checklist.
 
