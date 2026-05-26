@@ -6,7 +6,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
-import type { SentimentResult } from '@/hooks/use-sentiment-analyzer';
+import type { SentimentResult } from '@/hooks/sentiment-utils';
 import { useTranscriber } from '@/hooks/use-transcriber';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
 import { useSpiritualResponseLookup } from '@/hooks/use-spiritual-response-lookup';

@@ -7,14 +7,14 @@
 - **Audio**: expo-av for recording, expo-speech-recognition for on-device transcription
 - **On-device AI**: `@ratley/react-native-apple-foundation-models` — sentiment + anonymization via Apple Foundation Models
 - **Backend**: FastAPI with uvicorn, httpx, pydantic — deployed to Fly.io
-- **Tooling**: eslint (expo-config flat config), no test runner, no formatter
+- **Tooling**: eslint (expo-config flat config), vitest (tests in `hooks/__tests__/`), no formatter
 
 ## Layout
 
 | Path | Contents |
 |------|----------|
 | `app/` | expo-router screens (`index.tsx` = main UI, `debug.tsx`, `_layout.tsx`) |
-| `hooks/` | Pipeline hooks: `useAudioRecorder`, `useTranscriber`, `useSentimentAnalyzer`, `useSpiritualResponseLookup` |
+| `hooks/` | Pipeline hooks + `sentiment-utils.ts` (pure parsing functions, RN-free) |
 | `components/` | Shared UI (`themed-text.tsx`, `themed-view.tsx`) |
 | `constants/` | Brand config (`brand.ts`), theme (`theme.ts`) |
 | `services/` | `lookup-client.ts` — the only network egress |
@@ -33,7 +33,7 @@ pip install -e .   # install FastAPI + dependencies
 uvicorn app.main:app --reload --port 8080
 ```
 
-No `test` or `typecheck` script exists.
+Tests are in `hooks/__tests__/` (vitest, 33+ tests on sentiment parsing). CI runs `npm run lint` + `npm run typecheck` + `npm test` on every push/PR to main.
 
 ## Conventions
 
