@@ -12,11 +12,14 @@ This document closes the section 1 blocking gate for `dhammapada-catalog-lookup`
 
 ## 1.2 License verification
 
-- **Authorial copyright:** F. Max Müller died in 1900. His translation entered the public domain worldwide under life+70 and life+100 regimes decades ago. There is no surviving authorial copyright in any jurisdiction the App Store distributes to.
-- **Edition copyright:** the 1881 Oxford edition is pre-1929 and pre-URAA-restoration. It is in the public domain in the United States and in every country that observes a publication-based or life+70/100 term for foreign works of that era.
-- **Project Gutenberg terms:** the underlying work is public domain. Project Gutenberg's added trademark/header text is not redistributed: the app ships only the canonical verse text extracted from the edition, not the Gutenberg header or trademark notice. This keeps the app outside the scope of the Project Gutenberg License entirely. The Gutenberg URL is recorded as the *source of the digital text we transcribed from*, not as a license dependency.
+What Project Gutenberg itself asserts and what we determine are two different things; this section keeps them separate.
+
+- **What Project Gutenberg asserts:** the ebook #2017 page states only *"Public domain in the USA."* PG verifies US status; it does not make a worldwide claim. PG also notes the original introduction, notes, and index were omitted from the transcription — so the source is clean verse text, not Müller's commentary.
+- **Our determination — authorial copyright (worldwide):** F. Max Müller died in 1900. Copyright in his translation (a derivative work; the translator holds it) expired under every term regime that matters: life+70 lapsed in 1970, life+100 in 2000. No surviving authorial copyright remains in any jurisdiction the App Store distributes to.
+- **Our determination — US status and URAA:** the 1881 Oxford edition is pre-1929, so it is public domain in the US on the published-before-1929 rule. URAA copyright restoration does not apply: restoration only reaches foreign works still under copyright in their source country on the URAA date (Jan 1, 1996), and this work's UK source-country term (life+70) had already expired in 1970. It was therefore never restored.
+- **Project Gutenberg trademark/header:** the app ships only canonical verse text extracted from the edition, never the Gutenberg header or trademark notice, keeping the app outside the scope of the Project Gutenberg License. The Gutenberg URL is recorded as the *source of the digital text we transcribed from*, not as a license dependency.
 - **App-store compatibility:** no commercial or non-commercial restriction applies. The translation can be displayed in a paid or free app on any platform.
-- **Conclusion:** public domain, worldwide. No license note required beyond provenance.
+- **Conclusion:** public domain worldwide on the merits (author d. 1900). PG's narrower "USA" assertion is not a contradiction — it is the limit of what PG verifies, not a ceiling on the work's actual status. No license note required beyond provenance.
 
 ## 1.3 Per-row provenance metadata
 
@@ -31,4 +34,8 @@ Every Dhammapada catalog row SHALL carry these fields (matches the schema in tas
 }
 ```
 
-Tasks 1.1, 1.2, and 1.3 are closed by this document. Task 1.4 (seed all 423 vs curated subset) remains open and is the last gate before section 2 work begins.
+Tasks 1.1, 1.2, and 1.3 are closed by this document. Task 1.4 (seed all 423 vs curated subset) is resolved separately in `design.md` → "Resolved decisions": seed the full 423 from day one. The section 1 gate is fully closed.
+
+## Verification log
+
+- 2026-05-28 — confirmed `gutenberg.org/ebooks/2017` is *Dhammapada, a Collection of Verses … Translated by F. Max Müller*, from *Sacred Books of the East* Vol. X Part I; PG status line reads "Public domain in the USA"; introduction/notes/index omitted from the transcription.

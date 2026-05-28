@@ -337,7 +337,7 @@ Exclusion criteria when `crisisFlag = true` (all OR'd together):
 
 - `tone` is a harsh tone designated in the frozen vocabulary (e.g. `stern`). The full hard-exclusion tone set is part of the vocabulary lock-down in task 2.4.
 - Any `avoidWhen` value matches a crisis-adjacent state: `acute shame`, `panic`, `despair`, `self-blame`, `abuse disclosure`, `fresh grief`, `suicidal ideation`.
-- `themes` contains a designated high-risk category (death, ascetic-correction, moral-rebuke). Exact theme labels are specified during vocabulary lock-down.
+- `themes` contains a designated high-risk category (death, ascetic-discipline, moral-rebuke). Exact theme labels are specified during vocabulary lock-down (now frozen in `vocabulary.json` → `crisisHardExclusion.themes`).
 - `excludeOnCrisis == true`: a per-row reviewer flag for passages that bypass the categorical filters but are still inappropriate. Set during human review (task 2.8).
 
 Exclusion happens in the adapter, before the LLM index is constructed. The LLM cannot override it: if the LLM returns an excluded ID, the adapter rejects the response as malformed (same path as a nonexistent ID).

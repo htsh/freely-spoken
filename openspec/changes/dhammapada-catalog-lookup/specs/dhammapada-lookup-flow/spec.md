@@ -134,7 +134,7 @@ When `crisisFlag = true`, the Dhammapada adapter SHALL filter the catalog/shortl
 - **THEN** the adapter SHALL exclude from the LLM-visible index every passage where any of the following holds:
   - `tone` is a harsh tone designated in the frozen vocabulary (e.g. `stern`)
   - `avoidWhen` contains any crisis-adjacent state: `acute shame`, `panic`, `despair`, `self-blame`, `abuse disclosure`, `fresh grief`, `suicidal ideation`
-  - `themes` contains a designated high-risk category from the frozen vocabulary (death, ascetic-correction, moral-rebuke)
+  - `themes` contains a designated high-risk category from the frozen vocabulary (death, ascetic-discipline, moral-rebuke)
   - `excludeOnCrisis` is `true` (a per-row reviewer flag for passages that bypass the categorical filters but remain inappropriate)
 - **AND** the LLM prompt SHALL NOT mention crisis state, since exclusion is enforced out of band
 
