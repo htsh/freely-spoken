@@ -7,10 +7,10 @@
 
 ## 2. Catalog design and curation
 
-- [ ] 2.1 Define the catalog schema: `id`, `tradition`, `source`, `chapter`, `chapterNumber`, `verseNumber`, `passageRef`, `displayLabel`, `text`, `translator`, `sourceUrl`, `publicDomainStatus`, `licenseNote`, `themes`, `useWhen`, `avoidWhen`, `tone`, `summary`, `emotionalFit`, `vulnerableStatesToAvoid`, `riskNotes`, `excludeOnCrisis`, `labeledBy`, `labeledAt`, `promptVersion`, `reviewedBy`
-- [ ] 2.2 Choose storage for the first pass: checked-in JSON catalog loaded at startup unless Mongo editing workflow is explicitly needed
+- [x] 2.1 Define the catalog schema: `id`, `tradition`, `source`, `chapter`, `chapterNumber`, `verseNumber`, `passageRef`, `displayLabel`, `text`, `translator`, `sourceUrl`, `publicDomainStatus`, `licenseNote`, `themes`, `useWhen`, `avoidWhen`, `tone`, `summary`, `emotionalFit`, `vulnerableStatesToAvoid`, `riskNotes`, `excludeOnCrisis`, `labeledBy`, `labeledAt`, `promptVersion`, `reviewedBy`
+- [x] 2.2 Choose storage for the first pass: checked-in JSON catalog loaded at startup unless Mongo editing workflow is explicitly needed
 - [ ] 2.3 Seed canonical text and provenance metadata for each approved verse
-- [ ] 2.4 Define and freeze the controlled vocabularies for `themes`, `useWhen`, `avoidWhen`, `tone`, `emotionalFit`, and `vulnerableStatesToAvoid` — enumerate every allowed value in a checked-in vocabulary file before any labeling prompts are drafted. The frozen `tone` and `themes` vocabularies must designate which values are crisis-flag hard-exclusion triggers (see task 4.6)
+- [x] 2.4 Define and freeze the controlled vocabularies for `themes`, `useWhen`, `avoidWhen`, `tone`, `emotionalFit`, and `vulnerableStatesToAvoid` — enumerate every allowed value in a checked-in vocabulary file before any labeling prompts are drafted. The frozen `tone` and `themes` vocabularies must designate which values are crisis-flag hard-exclusion triggers (see task 4.6)
 - [ ] 2.4a Define the labeling rubric: what each field means, judgment criteria, examples of correct and incorrect labels, referencing the frozen vocabularies
 - [ ] 2.4b Define the JSON schema for labeled output: required fields, vocabulary constraints, and per-row provenance fields (`labeledBy`, `labeledAt`, `promptVersion`)
 - [ ] 2.5 Draft the LLM labeling prompts as two passes: semantic labels (`themes`, `summary`, `emotionalFit`, `useWhen`) and safety/tone labels (`tone`, `avoidWhen`, `vulnerableStatesToAvoid`, `riskNotes`)
