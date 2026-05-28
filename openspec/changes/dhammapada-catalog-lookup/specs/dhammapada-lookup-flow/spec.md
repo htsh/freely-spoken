@@ -7,7 +7,7 @@ The backend SHALL store an approved Dhammapada catalog containing canonical pass
 #### Scenario: Catalog entry contains canonical and retrieval fields
 
 - **WHEN** a catalog entry is loaded
-- **THEN** it SHALL include a stable `id`, `passageRef`, `displayLabel`, canonical `text`, translator/source/license metadata, `themes`, `useWhen`, `avoidWhen`, `tone`, `summary`, `emotionalFit`, `couldThisSoundBlaming`, `vulnerableStatesToAvoid`, and `riskNotes`
+- **THEN** it SHALL include a stable `id`, `passageRef`, `displayLabel`, canonical `text`, translator/source/license metadata, `themes`, `useWhen`, `avoidWhen`, `tone`, `summary`, `emotionalFit`, `vulnerableStatesToAvoid`, `riskNotes`, `excludeOnCrisis`, and per-row labeling provenance (`labeledBy`, `labeledAt`, `promptVersion`, `reviewedBy`)
 - **AND** retrieval metadata SHALL be stored separately from canonical passage text
 
 #### Scenario: Catalog validation rejects incomplete provenance
@@ -23,14 +23,15 @@ The Dhammapada catalog labeling process SHALL use LLM-assisted first-pass metada
 
 - **WHEN** an approved canonical Dhammapada passage is sent through the labeling workflow
 - **THEN** the labeling LLM SHALL return structured metadata matching the approved schema
-- **AND** the metadata SHALL include themes, use-when guidance, avoid-when guidance, tone, summary, emotional fit, whether the passage could sound blaming, vulnerable states to avoid, and risk notes
+- **AND** the metadata SHALL include themes, use-when guidance, avoid-when guidance, tone, summary, emotional fit, vulnerable states to avoid, and risk notes
+- **AND** the labeling tool SHALL record per-row provenance (`labeledBy`, `labeledAt`, `promptVersion`) on the catalog record
 - **AND** the metadata SHALL NOT modify canonical passage text
 
 #### Scenario: Labeling separates semantic fit from safety and tone
 
 - **WHEN** labels are generated for an approved passage
 - **THEN** the labeling workflow SHALL produce semantic labels such as themes, summary, emotional fit, and use-when guidance
-- **AND** it SHALL separately produce safety/tone labels such as tone, avoid-when guidance, whether the passage could sound blaming, vulnerable states to avoid, and risk notes
+- **AND** it SHALL separately produce safety/tone labels such as tone, avoid-when guidance, vulnerable states to avoid, and risk notes
 
 #### Scenario: Generated labels use unapproved vocabulary
 
@@ -123,12 +124,49 @@ The Dhammapada selection prompt and metadata SHALL prevent harsh or moralizing p
 - **WHEN** the anonymized text indicates anger, reactivity, craving, or speech regret without acute shame, panic, despair, or self-blame
 - **THEN** the selector MAY choose a direct passage if its metadata fits the situation
 
-### Requirement: Dhammapada lookup does not require vector search
+### Requirement: Crisis flag hard-excludes high-risk passages before LLM selection
 
-The initial Dhammapada lookup flow SHALL use curated catalog selection and SHALL NOT require Qdrant or another vector database.
+When `crisisFlag = true`, the Dhammapada adapter SHALL filter the catalog/shortlist presented to the LLM to remove high-risk passages before the prompt is constructed. The LLM SHALL NOT be told a crisis is in progress. This is a stricter posture than the Christian variant's informational-only crisis flag.
 
-#### Scenario: Initial corpus is small
+#### Scenario: Crisis flag excludes stern, harm-adjacent, and high-risk passages
+
+- **WHEN** the lookup request has `crisisFlag = true`
+- **THEN** the adapter SHALL exclude from the LLM-visible index every passage where any of the following holds:
+  - `tone` is a harsh tone designated in the frozen vocabulary (e.g. `stern`)
+  - `avoidWhen` contains any crisis-adjacent state: `acute shame`, `panic`, `despair`, `self-blame`, `abuse disclosure`, `fresh grief`, `suicidal ideation`
+  - `themes` contains a designated high-risk category from the frozen vocabulary (death, ascetic-correction, moral-rebuke)
+  - `excludeOnCrisis` is `true` (a per-row reviewer flag for passages that bypass the categorical filters but remain inappropriate)
+- **AND** the LLM prompt SHALL NOT mention crisis state, since exclusion is enforced out of band
+
+#### Scenario: Excluded passages cannot be selected even if the LLM names them
+
+- **WHEN** the LLM returns an ID that matches a passage excluded by crisis-flag filtering
+- **THEN** the adapter SHALL reject the response as malformed
+- **AND** the backend SHALL NOT return that passage
+
+#### Scenario: Crisis-flag exclusion leaves fewer than three eligible passages
+
+- **WHEN** crisis-flag filtering leaves fewer than three eligible passages in the shortlist
+- **THEN** the adapter SHALL return a `lookup_unavailable` response
+- **AND** the adapter SHALL NOT relax the filter, fall through to the full index, or substitute LLM-generated content
+
+### Requirement: Dhammapada lookup uses deterministic shortlist selection by default
+
+The initial Dhammapada lookup flow SHALL use deterministic shortlist + LLM rerank as the default selection path, MAY fall back to full compact-index selection only when shortlist measurements show systematic misses, and SHALL NOT require Qdrant or another vector database.
+
+#### Scenario: Default selection uses a deterministic shortlist
+
+- **WHEN** the adapter handles a Dhammapada lookup
+- **THEN** it SHALL preselect a shortlist of 30-60 candidate passages by matching `useWhen`, `themes`, and `tone` against sentiment/emotions/anonymized keywords
+- **AND** it SHALL exclude `avoidWhen` conflicts and apply any crisis-flag hard exclusion before the LLM sees the index
+
+#### Scenario: Full-index fallback is gated on measurement
+
+- **WHEN** shortlist measurements show systematic misses where full-index selection would have caught a better passage
+- **THEN** the adapter MAY fall back to passing the full compact catalog index to the LLM
+- **AND** the change SHALL be a measured response to observed failure, not a default
+
+#### Scenario: No vector database is required
 
 - **WHEN** the approved catalog is limited to the Dhammapada corpus or a curated subset of it
-- **THEN** the backend SHALL use a compact catalog index or deterministic shortlist for selection
-- **AND** no vector database SHALL be required to serve lookups
+- **THEN** no vector database SHALL be required to serve lookups

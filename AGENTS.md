@@ -15,7 +15,11 @@ npm install
 npx expo prebuild           # regenerates ios/ (gitignored) — required after dependency or app.json changes
 npx expo run:ios --device   # build native project, install on device, launch
 npm run lint                # eslint via expo config (expo lint)
+npm run typecheck           # tsc --noEmit
+npm test                    # vitest (sentiment-parsing unit tests)
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint + typecheck + vitest on every push/PR to `main`.
 
 ```bash
 # Server (server/, FastAPI, deployed to Fly.io)
@@ -26,7 +30,7 @@ uvicorn app.main:app --reload --port 8080
 
 - `ios/` and `android/` are gitignored. Do not make durable app changes inside generated native projects.
 - `app.config.js` resolves `EXPO_PUBLIC_*` env vars into `app.json extra` at build time. Change env config there, not in `app.json` extras directly (which hold literal `$EXPO_PUBLIC_*` placeholder strings).
-- No automated test suite. Use `npm run lint` plus the manual debug paths in `docs/debug-testing.md`.
+- Vitest covers sentiment-parsing utilities (`hooks/__tests__/`); end-to-end verification still relies on `tools/sentiment-cli/`, `tools/lookup-harness/`, and device runs (`docs/debug-testing.md`).
 - EAS build profiles (`eas.json`): `development` (Debug, internal), `preview` (Release, internal), `production` (store).
 
 ## Architecture
@@ -63,7 +67,7 @@ The Mac-local harness (`tools/lookup-harness/`) is the right place to iterate pr
 
 1. **Christian (v1)** — implemented.
 2. **Stoic (v2)** — stub; catalog not yet seeded. Governed by `docs/stoic-curation-rubric.md`.
-3. **Open slot (v3)** — candidate sources in `docs/other_wisdom_sources.md`.
+3. **Dhammapada (v3)** — committed. Backend-owned curated catalog (423 verses), LLM picks IDs from an approved index, server returns canonical text from the catalog. Crisis-flag hard-excludes high-risk passages from the index *before* the LLM sees it (stricter than Christian). Source/rights review is a strict gate before any labeling or adapter work. See `openspec/changes/dhammapada-catalog-lookup/` for the in-flight plan; `docs/other_wisdom_sources.md` lists v4+ candidates.
 
 Product shape: **"short, concrete passage."** Keep lookup single-turn. Do not add chat memory, thread state, accounts, feeds, or persistent history.
 
@@ -75,6 +79,8 @@ Most complex hook, easiest to regress. `analyze()` gates on `getTextModelAvailab
 2. On failure, `generateText()` + hand-written `extractFirstJSONObject()` brace matcher
 
 Both paths normalize via alias maps (`SENTIMENT_ALIASES`, `EMOTION_ALIASES`) because the on-device 3B model returns loose labels (`"happy"`, `"angry"`, `"85%"`, comma-joined strings). `normalizeAnonymizedText` applies a local privacy guard — if output reuses protected terms, identifiers, or too much source wording, it falls back to a generic category-based sentence, never the original transcript.
+
+Pure parsing (`normalizeSentiment`, `normalizeEmotions`, `normalizeConfidence`, `extractFirstJSONObject`, alias maps) lives in `hooks/sentiment-utils.ts` — RN-free so vitest can cover it. The hook owns the FM calls and orchestration; land parser changes in `sentiment-utils.ts` and extend the test suite in `hooks/__tests__/`.
 
 When changing the prompt, schema, aliases, anonymization rules, or model package, run real examples through debug tools and device flow. Schema checks alone don't catch normalization or privacy regressions.
 
@@ -92,6 +98,7 @@ See `docs/debug-testing.md` for the full matrix, fixture workflows, and device c
 ## Conventions
 
 - TypeScript strict mode. Path alias `@/*` maps to repo root (`@/hooks/...`, `@/components/...`).
+- Named exports everywhere — hooks and components use `export function useX()` / `export function X()`, imported as `import { X } from '@/path'`. No default exports outside of `app/` route files (which expo-router requires).
 - `expo-router` file-based routing (`app/_layout.tsx` is root Stack, `app/index.tsx` is home screen).
 - `typedRoutes`, `reactCompiler`, New Architecture (`newArchEnabled: true`) enabled. `newArchEnabled` is load-bearing — Foundation Models bridge requires it.
 - UI uses `ThemedText`, `ThemedView`, `useThemeColor`, `constants/theme.ts`. Do not hardcode colors.

@@ -1,25 +1,25 @@
 # Other Wisdom Source Candidates — decision sheet
 
-Compact, ranked-by-criterion shortlist for v3+ wisdom corpora. The longer per-source notes live in `docs/other_sources.md`; this file is the decision sheet for which corpus fills the v3 slot.
+Compact, ranked-by-criterion shortlist for wisdom corpora beyond v3. The longer per-source notes live in `docs/other_sources.md`; this file tracks v4+ candidates now that v3 is committed.
 
-## Ordering as of 2026-05-13
+## Ordering as of 2026-05-28
 
 1. **Christian** — v1, committed.
 2. **Stoic** — v2, committed. See `docs/stoic-curation-rubric.md` for the "Stoic but not bro-Stoic" content rules.
-3. **Open slot (v3)** — Zen koans no longer the committed v3. Slot fills with whichever corpus best matches the v1/v2 product shape and passes rights review.
+3. **Dhammapada** — v3, committed. 423 short verse-form sayings. Buddhist (not Zen — label clearly). In-flight plan: `openspec/changes/dhammapada-catalog-lookup/`.
+4. **Open slot (v4)** — fills with whichever remaining corpus best matches the v1/v2/v3 product shape and passes rights review.
 
 ## Provisional criterion
 
-v3+ candidates evaluated against: *"delivers short, concrete passages on stress-relevant themes."*
+v4+ candidates evaluated against: *"delivers short, concrete passages on stress-relevant themes."*
 
-Both v1 and v2 are aphorism-shaped. The criterion fell out of that — it is not yet validated against real user experience. Treat as a strong default; revisit after v1 ships and there's something in hand.
+v1, v2, and v3 are all aphorism-shaped. The criterion fell out of that — it is not yet validated against real user experience. Treat as a strong default; revisit after v1 ships and there's something in hand.
 
-## v3+ shortlist (ranked by criterion fit)
+## v4+ shortlist (ranked by criterion fit)
 
-1. **Dhammapada** — 423 short verse-form sayings. Anger, craving, grief, speech, mindfulness. Buddhist (not Zen — label clearly). Project Gutenberg text public domain.
-2. **Tao Te Ching** — 81 short aphoristic chapters. Control, striving, non-reactivity. Translation provenance matters; use known public-domain (Legge, Goddard).
-3. **Pirkei Avot** — terse Jewish wisdom across ~6 chapters. Speech, ego, conduct. Public-domain translations exist.
-4. **Confucian Analects** — short sayings. Conduct, speech, restraint. Legge translation public domain.
+1. **Tao Te Ching** — 81 short aphoristic chapters. Control, striving, non-reactivity. Translation provenance matters; use known public-domain (Legge, Goddard).
+2. **Pirkei Avot** — terse Jewish wisdom across ~6 chapters. Speech, ego, conduct. Public-domain translations exist.
+3. **Confucian Analects** — short sayings. Conduct, speech, restraint. Legge translation public domain.
 
 ## Reshape-required candidates
 
