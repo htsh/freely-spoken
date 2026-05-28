@@ -1,0 +1,5 @@
+# Labeling run intermediates: provider eval dumps, draft label batches,
+# pre-review outputs. Reproducible; not committed. The deterministic
+# canonical seed (catalog.seed.json) IS committed, one level up.
+outputs/*
+!outputs/.gitkeep

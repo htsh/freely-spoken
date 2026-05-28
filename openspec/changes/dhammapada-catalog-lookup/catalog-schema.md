@@ -24,15 +24,22 @@ Every catalog row is one JSON object with the following fields. Field grouping r
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `id` | string | yes | Stable opaque ID. Pattern: `dhp-NNN` zero-padded to 3 digits (`dhp-001` … `dhp-423`). Never reused; never reordered. |
+| `id` | string | yes | Stable opaque ID. Pattern: `dhp-NNN` zero-padded to 3 digits, where `NNN` is the row's starting `verseNumber` (`dhp-001` … `dhp-423`). Grouped couplets use the first verse (`dhp-058` for 58–59); the second number gets no separate id. Never reused; never reordered. |
 | `tradition` | string enum | yes | Always `"buddhist"` for this catalog. Distinguishes from future variant catalogs. |
 | `source` | string enum | yes | Always `"Dhammapada"` for this catalog. |
-| `chapter` | string | yes | Chapter title in the chosen translation (e.g. `"The Twin Verses"`). |
+| `chapter` | string | yes | Chapter title in the chosen translation (e.g. `"The Twin-Verses"`). |
 | `chapterNumber` | integer | yes | 1-indexed chapter number (1–26). |
-| `verseNumber` | integer | yes | 1-indexed verse number within the corpus (1–423). |
-| `passageRef` | string | yes | Display reference (e.g. `"Dhammapada 1"`). |
+| `verseNumber` | integer | yes | Starting verse number of the passage (1–423). For single-verse rows this is the verse; for grouped couplets it is the first verse. |
+| `verseNumberEnd` | integer | no | Present only on grouped couplets (the 9 paragraphs Müller renders as one continuous passage spanning two verses). Equals the last verse number (e.g. `59`). Absent on single-verse rows. See "Grouped couplets" below. |
+| `passageRef` | string | yes | Display reference. `"Dhammapada 1"` for single verses, `"Dhammapada 58-59"` for grouped couplets. |
 | `displayLabel` | string | yes | UI label. For v1, equals `passageRef`. Reserved separate to allow chapter-title styling later without re-keying. |
-| `text` | string | yes | Canonical verse text. Sourced from Project Gutenberg #2017 (Müller, 1881). Whitespace-normalized. May contain multi-line breaks for paired verses. |
+| `text` | string | yes | Canonical verse text. Sourced from Project Gutenberg #2017 (Müller, 1881), with the leading verse number stripped. Whitespace-normalized. Grouped couplets hold the full combined paragraph. |
+
+#### Grouped couplets
+
+Müller renders 9 verse pairs as a single continuous paragraph because the two verses form one sentence/thought: **58–59, 87–88, 104–105, 153–154, 195–196, 229–230, 256–257, 268–269, 271–272**. Per the resolved grouping decision (see below), each such paragraph is **one** catalog row (`verseNumber` = first, `verseNumberEnd` = second, `passageRef` = `"Dhammapada 58-59"`), not two. This avoids two rows carrying identical text — which would let the selector return the same passage as both primary and an alternate, and would double labeling cost for those verses.
+
+**Resolved decision (task 2.3): the catalog uses "passage" grouping — 414 rows covering all 423 verse numbers.** The alternative ("verse" grouping: 423 rows, couplets duplicated) was rejected for the duplicate-text reasons above. The seeder (`tools/dhammapada-labeling/seed_catalog.py`) supports both via `--grouping`, but `passage` is the committed mode.
 
 ### Provenance and rights
 
@@ -76,22 +83,27 @@ These fields document which run produced or reviewed each row so partial relabel
 
 These get enforced by the validation script in task 2.7. Listing them here so they are not lost between artifacts.
 
-- `id` matches `^dhp-\d{3}$` and is unique across the catalog.
+- The catalog holds **414 rows** (passage grouping) collectively covering verse numbers 1..423 with no gaps.
+- `id` matches `^dhp-\d{3}$`, is unique, and equals `dhp-{verseNumber:03d}`.
 - `verseNumber` is unique across the catalog and falls in 1..423.
+- `verseNumberEnd`, when present, is `verseNumber + 1` and only appears on the 9 known grouped couplets; rows without it are single verses. No verse number is covered by more than one row.
 - `chapterNumber` falls in 1..26.
 - All vocabulary-constrained fields contain only values present in `vocabulary.json`.
 - `themes` has at least 1 entry and at most 4.
-- `useWhen` has at least 1 entry and at most 5.
-- `emotionalFit` has at least 1 entry and at most 5.
-- `text`, `summary`, `translator`, `sourceUrl`, `publicDomainStatus`, `licenseNote`, `labeledBy`, `promptVersion` are non-empty strings.
+- `useWhen` has at least 1 entry and at most 5; `emotionalFit` 1–5; `tone` is exactly one value.
+- No value appears in both `useWhen` and `avoidWhen` of the same row.
+- `vulnerableStatesToAvoid` is a subset of that row's `avoidWhen` (see labeling-rubric.md).
+- `text`, `summary`, `translator`, `sourceUrl`, `publicDomainStatus`, `licenseNote`, `labeledBy`, `promptVersion` are non-empty strings on a labeled row.
 - `labeledAt` parses as ISO 8601.
-- `excludeOnCrisis` is a boolean.
+- `excludeOnCrisis` is a boolean; `reviewedBy` is a string or null.
 - Canonical fields (`text`, `passageRef`, `translator`, etc.) never contain LLM-generated content; this is enforced by the labeling tool refusing to write to those fields.
+
+A **seed row** (post-`seed_catalog.py`, pre-labeling) has canonical + provenance-constant fields populated and retrieval-metadata fields empty (`themes: []`, `tone: null`, `labeledBy: null`, …). The validator distinguishes seed rows from labeled rows: cardinality/vocabulary checks apply only once a row is labeled.
 
 ## Out of scope for this artifact
 
-- Field-by-field labeling rubric (task 2.4a — next session).
-- JSON Schema document for labeled-output validation (task 2.4b — next session).
+- Field-by-field labeling rubric — done in `labeling-rubric.md` (task 2.4a).
+- JSON Schema document for labeled-output validation (task 2.4b).
 - Two-pass labeling prompts (task 2.5).
 - Validation script implementation (task 2.7).
-- The catalog file itself (task 2.3 — transcription job, deferred).
+- The seeded catalog is produced by `tools/dhammapada-labeling/seed_catalog.py` (task 2.3); it is promoted to `server/app/lookup/dhammapada_catalog.json` after labeling + review (task 5.2).
