@@ -427,6 +427,8 @@ Before implementation:
 
 - **Dhammapada is the committed v3 variant, shipping after Stoic v2.** Replaces the previous "open slot (v3)" placeholder in `CLAUDE.md`, `AGENTS.md`, and `docs/other_wisdom_sources.md`. Those need a parallel update.
 - **Source and rights review (tasks 1.1-1.3) is a strict gate.** No section 2+ work (labeling, prompt drafting, adapter) begins until canonical translation and license are confirmed — switching translator after labeling would invalidate tone judgments.
+- **Canonical translation is F. Max Müller (Sacred Books of the East Vol. X Part I, Oxford 1881), sourced from Project Gutenberg ebook #2017.** Public domain worldwide; no App Store license risk. Dated Victorian English is acknowledged; tone metadata, crisis-flag hard exclusion, and fixture review manage the matching risk. Full verification and provenance recorded in `rights-review.md`.
+- **Catalog seeds the full 423 verses from day one.** Rubric, controlled vocabularies, two-pass labeling, and crisis-flag exclusion get exercised against the real corpus shape rather than a hand-picked subset that would bias the rubric and force a re-run on expansion. Labeling cost (~800-900 calls across two passes) is small on free-tier credits.
 - **Selection defaults to deterministic shortlist + LLM rerank, not full compact index.** Full-index is a fallback gated on shortlist-miss measurements (task 4.4b), not a starting point.
 - **Crisis-flag drives hard exclusion of high-risk passages before the LLM sees the index** (see "Crisis-flag hard exclusion"). This is stricter than the Christian variant's informational-only crisis flag.
 - **`couldThisSoundBlaming: boolean` is dropped from the schema.** It encoded the same judgment as `vulnerableStatesToAvoid` with lower fidelity.

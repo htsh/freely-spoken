@@ -1,9 +1,9 @@
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
-- [ ] 1.1 Confirm the exact Dhammapada translation/edition to use as canonical app content
-- [ ] 1.2 Verify public-domain or app-compatible licensing status for the chosen source
-- [ ] 1.3 Record translator, source URL, publication/source notes, public-domain status, and license note required for every catalog entry
-- [ ] 1.4 Decide whether to seed all 423 verses or start with a curated subset
+- [x] 1.1 Confirm the exact Dhammapada translation/edition to use as canonical app content
+- [x] 1.2 Verify public-domain or app-compatible licensing status for the chosen source
+- [x] 1.3 Record translator, source URL, publication/source notes, public-domain status, and license note required for every catalog entry
+- [x] 1.4 Decide whether to seed all 423 verses or start with a curated subset
 
 ## 2. Catalog design and curation
 
