@@ -8,6 +8,13 @@ Note: `CLAUDE.md` is a parallel instruction file for Claude Code. This file is t
 
 This app **cannot run in Expo Go**. It depends on native modules for audio, speech recognition, and Foundation Models, so use native iOS builds. Apple Intelligence requires real hardware (iPhone 15 Pro/16 series, M1+ iPad/Mac), iOS 26+, and Apple Intelligence enabled in Settings. Simulators won't work for the full recording+transcription flow.
 
+## Branding
+
+- **Freely Spoken** (`freelyspoken.com`) — Christian version (v1). Display name "Freely Spoken", bundle slug `freelyspoken`. `freelyspoken.com` is secured.
+- **Idle Ashes** (`idleashes.com`) — Buddhist version (v3, Dhammapada variant). Display name "Idle Ashes". Internal `appVariant` stays `"dhammapada"` (corpus name, not product name). Domain to be secured. Data-prep / labeling overview: `docs/idle-ashes-overview.md`.
+
+Use the product name (not `appVariant`) in copy, UI strings, and App Store metadata. The repo name `mic-check` is a working name and may be renamed later.
+
 ## Commands
 
 ```bash

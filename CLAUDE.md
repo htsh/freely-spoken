@@ -12,6 +12,8 @@ iOS-only Expo / React Native app that records audio, transcribes it on-device wi
 
 The Christian version of this app is being released as **Freely Spoken** (display name: "Freely Spoken", handle/bundle ID slug: `freelyspoken`). The domain `freelyspoken.com` is secured. The current repo name (`mic-check`) is a working name and may be renamed to match later. When writing copy, UI strings, or App Store metadata for the Christian variant, use "Freely Spoken" as the product name.
 
+The Buddhist version (v3, the Dhammapada variant — internal `appVariant: "dhammapada"`) is being released as **Idle Ashes**. Domain `idleashes.com` to be secured. When writing copy, UI strings, or App Store metadata for the Buddhist variant, use "Idle Ashes" as the product name. The internal `appVariant` value stays `"dhammapada"` (it names the corpus, not the product). See `docs/idle-ashes-overview.md` for a human-oriented walkthrough of the data-prep and labeling work.
+
 ## Commands
 
 Device app:

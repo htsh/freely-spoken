@@ -6,7 +6,7 @@ Compact, ranked-by-criterion shortlist for wisdom corpora beyond v3. The longer 
 
 1. **Christian** — v1, committed.
 2. **Stoic** — v2, committed. See `docs/stoic-curation-rubric.md` for the "Stoic but not bro-Stoic" content rules.
-3. **Dhammapada** — v3, committed. 423 short verse-form sayings. Buddhist (not Zen — label clearly). In-flight plan: `openspec/changes/dhammapada-catalog-lookup/`.
+3. **Dhammapada** — v3, committed. Released as **Idle Ashes** (`idleashes.com`, to be secured). 423 short verse-form sayings. Buddhist (not Zen — label clearly). In-flight plan: `openspec/changes/dhammapada-catalog-lookup/`. Human-oriented overview: `docs/idle-ashes-overview.md`.
 4. **Open slot (v4)** — fills with whichever remaining corpus best matches the v1/v2/v3 product shape and passes rights review.
 
 ## Provisional criterion
