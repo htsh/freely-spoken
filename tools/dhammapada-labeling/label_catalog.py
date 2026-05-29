@@ -73,7 +73,7 @@ PRESETS = {
 class LabelConfig:
     provider: str
     model: str = ""
-    prompt_version: str = "labeling-v1.0"
+    prompt_version: str = "labeling-v1.1"
     limit: int = 0                 # 0 = no limit
     sample_path: str = ""          # JSON list of ids to label (eval subset)
     max_retries: int = 3
@@ -373,7 +373,7 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--provider", required=True, choices=list(PRESETS))
     ap.add_argument("--model", default="")
-    ap.add_argument("--prompt-version", default="labeling-v1.0")
+    ap.add_argument("--prompt-version", default="labeling-v1.1")
     ap.add_argument("--limit", type=int, default=0, help="label only first N rows")
     ap.add_argument("--sample", default="", help="JSON file: list of ids to label")
     ap.add_argument("--max-retries", type=int, default=3)

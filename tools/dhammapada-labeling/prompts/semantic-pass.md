@@ -1,5 +1,6 @@
 # Dhammapada labeling — Pass 1 (semantic)
-# promptVersion: labeling-v1.0
+# promptVersion: labeling-v1.1 (semantic-pass content unchanged since v1.0;
+#   the v1.1 bump is the safety/tone pass's tightened avoidWhen/tone rules)
 #
 # This file is a template. The labeling tool substitutes {{VOCAB_*}} blocks
 # from vocabulary.json and {{PASSAGE_*}} from one seed row at call time, then
