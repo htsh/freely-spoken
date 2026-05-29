@@ -151,7 +151,7 @@ def validate_row(row, vocab, errors, require_labeled):
         err("reviewedBy must be string or null")
 
 
-def validate_catalog(catalog, vocab, require_labeled):
+def validate_catalog(catalog, vocab, require_labeled, subset=False):
     rows = catalog["rows"] if isinstance(catalog, dict) and "rows" in catalog else catalog
     errors = []
 
@@ -172,9 +172,10 @@ def validate_catalog(catalog, vocab, require_labeled):
             if row.get("verseNumberEnd"):
                 covered.add(row["verseNumberEnd"])
 
-    missing = sorted(set(range(1, 424)) - covered)
-    if missing:
-        errors.append(f"verse numbers not covered by any row: {missing}")
+    if not subset:
+        missing = sorted(set(range(1, 424)) - covered)
+        if missing:
+            errors.append(f"verse numbers not covered by any row: {missing}")
     return errors, len(rows), len(covered)
 
 
@@ -217,6 +218,8 @@ def main(argv=None):
     ap.add_argument("--vocab", default=DEFAULT_VOCAB)
     ap.add_argument("--require-labeled", action="store_true",
                     help="fail rows that are still seed-only (unlabeled)")
+    ap.add_argument("--subset", action="store_true",
+                    help="skip the full 1..423 verse-coverage check (for eval subsets)")
     ap.add_argument("--dump-schema", action="store_true",
                     help="print derived JSON Schema sketch and exit")
     args = ap.parse_args(argv)
@@ -231,7 +234,8 @@ def main(argv=None):
     with open(args.catalog, encoding="utf-8") as fh:
         catalog = json.load(fh)
 
-    errors, n_rows, n_covered = validate_catalog(catalog, vocab, args.require_labeled)
+    errors, n_rows, n_covered = validate_catalog(
+        catalog, vocab, args.require_labeled, subset=args.subset)
     if errors:
         print(f"INVALID: {len(errors)} error(s) across {n_rows} rows")
         for e in errors[:100]:

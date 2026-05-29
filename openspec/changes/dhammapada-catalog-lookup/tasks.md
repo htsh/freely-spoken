@@ -21,13 +21,13 @@
 
 ## 3. Labeling tooling and provider selection
 
-- [ ] 3.1 Create a development-only Python labeling tool plan under `tools/dhammapada-labeling/` for batch label generation, validation, per-row provenance (`labeledBy`, `labeledAt`, `promptVersion` written into each catalog record, not just into a batch-level log), and review outputs
-- [ ] 3.2 Define provider/model config inputs for the labeling tool, including provider, model, prompt version, sample limit, retry policy, and output path
-- [ ] 3.3 Select 20-30 representative Dhammapada passages for provider/model evaluation before labeling the full corpus
+- [x] 3.1 Create a development-only Python labeling tool plan under `tools/dhammapada-labeling/` for batch label generation, validation, per-row provenance (`labeledBy`, `labeledAt`, `promptVersion` written into each catalog record, not just into a batch-level log), and review outputs
+- [x] 3.2 Define provider/model config inputs for the labeling tool, including provider, model, prompt version, sample limit, retry policy, and output path
+- [x] 3.3 Select 20-30 representative Dhammapada passages for provider/model evaluation before labeling the full corpus
 - [ ] 3.4 Evaluate candidate models on Hugging Face, Fireworks, and Replicate using existing credits where possible
 - [ ] 3.5 Compare candidates on total estimated cost for 423 verses × 2 labeling passes, JSON validity, schema/vocabulary compliance, label usefulness, safety/tone judgment, latency, and retry behavior
 - [ ] 3.6 Choose one labeling provider/model for the full catalog run and record the rationale in the change design or follow-up notes
-- [ ] 3.7 Confirm the offline labeling provider/model is allowed to differ from the runtime lookup provider/model
+- [x] 3.7 Confirm the offline labeling provider/model is allowed to differ from the runtime lookup provider/model
 
 ## 4. Backend adapter planning
 

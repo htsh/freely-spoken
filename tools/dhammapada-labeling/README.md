@@ -18,9 +18,9 @@ Governing artifacts live with the OpenSpec change
 ```
 PG #2017 HTML ──seed_catalog.py──► catalog.seed.json   (canonical text, 414 rows)
                                         │
-                          label_catalog.py (task 3.1, TODO)
-                          two passes: prompts/semantic-pass.md
-                                      prompts/safety-tone-pass.md
+                          label_catalog.py (two passes:
+                            prompts/semantic-pass.md
+                            prompts/safety-tone-pass.md)
                                         │
                                         ▼
                               outputs/catalog.labeled.json  (gitignored)
@@ -42,15 +42,38 @@ python3 seed_catalog.py --grouping passage --out catalog.seed.json
 # Validate a seed or labeled catalog against the frozen schema + vocabulary
 python3 validate.py catalog.seed.json
 python3 validate.py outputs/catalog.labeled.json --require-labeled
+python3 validate.py outputs/eval.fireworks.json --require-labeled --subset  # eval subset
 
 # Inspect the derived JSON Schema (built live from vocabulary.json)
 python3 validate.py --dump-schema
+
+# Offline plumbing test — no API key (deterministic mock provider)
+python3 label_catalog.py --provider mock --sample eval_sample.json --out outputs/mock.json
+
+# Provider/model evaluation over the curated 26-passage sample (task 3.4)
+export FIREWORKS_API_KEY=...        # or HF_TOKEN / GROQ_API_KEY / OPENROUTER_API_KEY / ...
+python3 label_catalog.py --provider fireworks \
+    --model accounts/fireworks/models/llama-v3p1-70b-instruct \
+    --sample eval_sample.json --out outputs/eval.fireworks-70b.json
+python3 validate.py outputs/eval.fireworks-70b.json --require-labeled --subset
+
+# Full corpus run (after a model is chosen, task 2.6)
+python3 label_catalog.py --provider <p> --model <m> --out outputs/catalog.labeled.json
 ```
 
-`seed_catalog.py` and `catalog.seed.json` are committed. `outputs/` holds
-labeling-run intermediates and is gitignored. The labeling driver
-(`label_catalog.py`) and provider/model selection are section 3 (tasks 3.1–3.7),
-not yet built.
+`seed_catalog.py`, `validate.py`, `label_catalog.py`, the prompts, and
+`catalog.seed.json` / `eval_sample.json` are committed. `outputs/` holds
+labeling-run intermediates and is gitignored.
 
-Pure stdlib; no pip install required for `seed_catalog.py` / `validate.py`.
-The labeling driver will add provider SDK deps when section 3 lands.
+**Providers:** `label_catalog.py` speaks the OpenAI-compatible
+`/chat/completions` API, so one client covers Fireworks, HF router, Groq,
+OpenRouter, Together, and Cerebras — pick with `--provider`, set the matching
+`*_API_KEY` env var. `mock` needs no key (offline plumbing). `replicate` is a
+stub: its create-prediction + poll API is not OpenAI-compatible; wire a client
+only if a Replicate-hosted model wins the eval.
+
+Each labeling run writes `<out>` plus `<out>.report.json` (counts, JSON-valid
+rate, vocab-failure rate, latency, token totals) for the provider comparison
+in task 3.5.
+
+Pure stdlib; no pip install required.
