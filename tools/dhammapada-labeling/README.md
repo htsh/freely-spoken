@@ -66,7 +66,16 @@ python3 label_catalog.py --provider <p> --model <m> \
 
 `seed_catalog.py`, `validate.py`, `label_catalog.py`, the prompts, and
 `catalog.seed.json` / `eval_sample.json` are committed. `outputs/` holds
-labeling-run intermediates and is gitignored.
+disposable labeling-run scratch and is gitignored.
+
+`labeled/` is **committed** — it durably backs up full-corpus label runs (the
+raw model output is expensive to regenerate). Files are named
+`catalog.labeled.<model>.<promptVersion>.json` plus a `.report.json` sidecar.
+This is a **pre-review intermediate**, NOT the runtime catalog: it has machine
+labels only (`reviewedBy: null`, `excludeOnCrisis: false` on every row). It is
+promoted to `server/app/lookup/dhammapada_catalog.json` (task 5.2) only after
+human review (task 2.8) trims over-broad `avoidWhen`, sets `excludeOnCrisis`,
+and populates `reviewedBy` on the high-risk rows.
 
 **Providers:** `label_catalog.py` speaks the OpenAI-compatible
 `/chat/completions` API, so one client covers Fireworks, HF router, Groq,

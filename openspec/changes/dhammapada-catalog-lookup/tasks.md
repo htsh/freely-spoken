@@ -1,3 +1,12 @@
+<!-- STATUS (2026-05-29): Sections 1, 2 (except 2.8/2.9), and 3 complete.
+     Full corpus labeled with deepseek-v4-pro (414/414 rows, 423/423 verses,
+     0 failures), backed up at tools/dhammapada-labeling/labeled/. Provider
+     decision + rationale in provider-eval-results.md.
+     NEXT: 2.8 human review of high-risk labels (trim over-broad avoidWhen,
+     set excludeOnCrisis, populate reviewedBy) → then Section 4 backend
+     adapter planning. Promotion to server/app/lookup/dhammapada_catalog.json
+     is task 5.2, gated on 2.8. -->
+
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
 - [x] 1.1 Confirm the exact Dhammapada translation/edition to use as canonical app content
@@ -14,7 +23,7 @@
 - [x] 2.4a Define the labeling rubric: what each field means, judgment criteria, examples of correct and incorrect labels, referencing the frozen vocabularies
 - [x] 2.4b Define the JSON schema for labeled output: required fields, vocabulary constraints, and per-row provenance fields (`labeledBy`, `labeledAt`, `promptVersion`)
 - [x] 2.5 Draft the LLM labeling prompts as two passes: semantic labels (`themes`, `summary`, `emotionalFit`, `useWhen`) and safety/tone labels (`tone`, `avoidWhen`, `vulnerableStatesToAvoid`, `riskNotes`)
-- [ ] 2.6 Generate first-pass labels for approved passages with the two-pass labeling prompts
+- [x] 2.6 Generate first-pass labels for approved passages with the two-pass labeling prompts (deepseek-v4-pro, 414/414 rows, 423/423 verses, 0 failures; backed up at `tools/dhammapada-labeling/labeled/catalog.labeled.deepseek-v4-pro.labeling-v1.0.json`)
 - [x] 2.7 Add a catalog validation script/check that catches duplicate IDs, missing required fields, invalid tone values, out-of-vocabulary labels, empty text, and missing provenance
 - [ ] 2.8 Review high-risk labels specifically for shame, grief, panic, despair, self-blame, abuse/betrayal, and crisis-adjacent cases; reviewers SHALL populate `reviewedBy` and set `excludeOnCrisis = true` for any passage that bypasses the categorical filters but is still inappropriate when `crisisFlag = true`
 - [ ] 2.9 Update the rubric and regenerate labels when fixture testing reveals systematic matching problems

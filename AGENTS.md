@@ -74,7 +74,7 @@ The Mac-local harness (`tools/lookup-harness/`) is the right place to iterate pr
 
 1. **Christian (v1)** — implemented.
 2. **Stoic (v2)** — stub; catalog not yet seeded. Governed by `docs/stoic-curation-rubric.md`.
-3. **Dhammapada (v3)** — committed. Backend-owned curated catalog (423 verses), LLM picks IDs from an approved index, server returns canonical text from the catalog. Crisis-flag hard-excludes high-risk passages from the index *before* the LLM sees it (stricter than Christian). Source/rights review is a strict gate before any labeling or adapter work. See `openspec/changes/dhammapada-catalog-lookup/` for the in-flight plan; `docs/other_wisdom_sources.md` lists v4+ candidates.
+3. **Dhammapada (v3)** — committed. Backend-owned curated catalog (423 verses), LLM picks IDs from an approved index, server returns canonical text from the catalog. Crisis-flag hard-excludes high-risk passages from the index *before* the LLM sees it (stricter than Christian). Source/rights review is a strict gate before any labeling or adapter work. Labeling pipeline lives in `tools/dhammapada-labeling/` (dev-only); offline labeling model is **deepseek-v4-pro** (see `provider-eval-results.md`; may differ from runtime selector). All 423 verses are first-pass labeled and backed up under `tools/dhammapada-labeling/labeled/` — a **pre-review intermediate** (`reviewedBy: null`), promoted to `server/app/lookup/dhammapada_catalog.json` only after human review (task 2.8). See `openspec/changes/dhammapada-catalog-lookup/` for the in-flight plan; `docs/other_wisdom_sources.md` lists v4+ candidates.
 
 Product shape: **"short, concrete passage."** Keep lookup single-turn. Do not add chat memory, thread state, accounts, feeds, or persistent history.
 
