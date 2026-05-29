@@ -72,8 +72,18 @@ OpenRouter, Together, and Cerebras — pick with `--provider`, set the matching
 stub: its create-prediction + poll API is not OpenAI-compatible; wire a client
 only if a Replicate-hosted model wins the eval.
 
+**Structured output (on by default):** the driver sends
+`response_format={"type":"json_schema",...}` with the per-pass schema built
+live from `vocabulary.json` (enums + cardinality). On providers that support
+constrained decoding (Fireworks does), this makes JSON validity and
+in-vocabulary labels a platform guarantee, so model choice comes down to
+judgment quality (tone/safety), not JSON reliability. The subset rule
+(`vulnerableStatesToAvoid ⊆ avoidWhen`) isn't expressible in JSON Schema and
+stays a `validate.py` check. Pass `--no-structured` for providers/models that
+reject `response_format`.
+
 Each labeling run writes `<out>` plus `<out>.report.json` (counts, JSON-valid
-rate, vocab-failure rate, latency, token totals) for the provider comparison
-in task 3.5.
+rate, vocab-failure rate, latency, token totals, structured flag) for the
+provider comparison in task 3.5.
 
 Pure stdlib; no pip install required.

@@ -79,6 +79,7 @@ class LabelConfig:
     backoff_base: float = 2.0      # seconds; jittered exponential
     timeout: int = 60
     temperature: float = 0.2
+    structured: bool = True        # use response_format=json_schema (constrained decoding)
     out_path: str = "outputs/catalog.labeled.json"
     vocab_path: str = V.DEFAULT_VOCAB
     seed_path: str = os.path.join(HERE, "catalog.seed.json")
@@ -104,15 +105,18 @@ class OpenAICompatProvider:
         if not self.model:
             raise ProviderError(f"{cfg.provider}: --model is required")
 
-    def complete(self, system: str, user: str) -> tuple[str, dict]:
-        body = json.dumps({
+    def complete(self, system: str, user: str, response_format=None) -> tuple[str, dict]:
+        payload_body = {
             "model": self.model,
             "temperature": self.temperature,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-        }).encode("utf-8")
+        }
+        if response_format:
+            payload_body["response_format"] = response_format
+        body = json.dumps(payload_body).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions", data=body,
             headers={"Authorization": f"Bearer {self.api_key}",
@@ -129,7 +133,7 @@ class MockProvider:
     def __init__(self, cfg: LabelConfig):
         self.model = cfg.model or "mock-1"
 
-    def complete(self, system: str, user: str) -> tuple[str, dict]:
+    def complete(self, system: str, user: str, response_format=None) -> tuple[str, dict]:
         pid = re.search(r"Passage id:\s*(\S+)", user).group(1)
         if "semantic" in system.lower() or "what the passage is about" in system.lower():
             obj = {"id": pid, "themes": ["mind"], "summary": "Mock paraphrase.",
@@ -217,12 +221,12 @@ def extract_json(text: str) -> dict:
 
 
 # ── Retry wrapper ───────────────────────────────────────────────────────
-def call_with_retry(provider, system, user, cfg: LabelConfig):
+def call_with_retry(provider, system, user, cfg: LabelConfig, response_format=None):
     last = None
     for attempt in range(cfg.max_retries + 1):
         try:
             t0 = time.time()
-            text, usage = provider.complete(system, user)
+            text, usage = provider.complete(system, user, response_format)
             return text, usage, time.time() - t0
         except (urllib.error.HTTPError, urllib.error.URLError, ProviderError) as e:
             last = e
@@ -265,6 +269,42 @@ SEMANTIC_FIELDS = ("themes", "summary", "emotionalFit", "useWhen")
 SAFETY_FIELDS = ("tone", "avoidWhen", "vulnerableStatesToAvoid", "riskNotes")
 
 
+def build_pass_schema(pass_name: str, vocab: dict) -> dict:
+    """Per-pass JSON schema with vocab enums, for response_format=json_schema.
+
+    Constrained decoding makes the model emit valid JSON whose enum fields are
+    in-vocabulary by construction. The subset rule (vulnerableStatesToAvoid ⊆
+    avoidWhen) is not expressible in JSON Schema and stays a validate.py check.
+    """
+    enum_arr = lambda key, lo=None, hi=None: {
+        **{"type": "array", "items": {"type": "string", "enum": vocab[key]}},
+        **({"minItems": lo} if lo else {}), **({"maxItems": hi} if hi else {})}
+    if pass_name == "semantic":
+        props = {
+            "id": {"type": "string"},
+            "themes": enum_arr("themes", 1, 4),
+            "summary": {"type": "string"},
+            "emotionalFit": enum_arr("emotionalFit", 1, 5),
+            "useWhen": enum_arr("useWhen", 1, 5),
+        }
+        required = ["id", "themes", "summary", "emotionalFit", "useWhen"]
+        name = "dhammapada_semantic_labels"
+    else:
+        props = {
+            "id": {"type": "string"},
+            "tone": {"type": "string", "enum": vocab["tone"]},
+            "avoidWhen": enum_arr("avoidWhen"),
+            "vulnerableStatesToAvoid": enum_arr("vulnerableStatesToAvoid"),
+            "riskNotes": {"type": "string"},
+        }
+        required = ["id", "tone", "avoidWhen", "vulnerableStatesToAvoid", "riskNotes"]
+        name = "dhammapada_safety_labels"
+    return {"type": "json_schema", "json_schema": {
+        "name": name,
+        "schema": {"type": "object", "properties": props,
+                   "required": required, "additionalProperties": False}}}
+
+
 def label_row(row, provider, prompts, vocab, cfg, report):
     """Run both passes for one row; return (merged_row_or_None, ok)."""
     rid = row["id"]
@@ -272,8 +312,9 @@ def label_row(row, provider, prompts, vocab, cfg, report):
     for pass_name, (system_t, user_t) in prompts.items():
         system = render_vocab(system_t, vocab)
         user = render_user(user_t, row)
+        rf = build_pass_schema(pass_name, vocab) if cfg.structured else None
         try:
-            text, usage, dt = call_with_retry(provider, system, user, cfg)
+            text, usage, dt = call_with_retry(provider, system, user, cfg, rf)
         except ProviderError as e:
             report["errors"].append(f"{rid}/{pass_name}: {e}")
             return None, False
@@ -314,6 +355,9 @@ def main(argv=None):
     ap.add_argument("--sample", default="", help="JSON file: list of ids to label")
     ap.add_argument("--max-retries", type=int, default=3)
     ap.add_argument("--temperature", type=float, default=0.2)
+    ap.add_argument("--no-structured", dest="structured", action="store_false",
+                    help="disable response_format=json_schema constrained decoding "
+                         "(use for providers/models that don't support it)")
     ap.add_argument("--out", default="outputs/catalog.labeled.json")
     ap.add_argument("--vocab", default=V.DEFAULT_VOCAB)
     args = ap.parse_args(argv)
@@ -321,7 +365,8 @@ def main(argv=None):
     cfg = LabelConfig(
         provider=args.provider, model=args.model, prompt_version=args.prompt_version,
         limit=args.limit, sample_path=args.sample, max_retries=args.max_retries,
-        temperature=args.temperature, out_path=args.out, vocab_path=args.vocab)
+        temperature=args.temperature, structured=args.structured,
+        out_path=args.out, vocab_path=args.vocab)
 
     vocab = V.load_vocab(cfg.vocab_path)
     seed = json.load(open(cfg.seed_path, encoding="utf-8"))
@@ -341,7 +386,8 @@ def main(argv=None):
 
     provider = make_provider(cfg)
     report = {"provider": cfg.provider, "model": cfg.model or getattr(provider, "model", ""),
-              "promptVersion": cfg.prompt_version, "rowsAttempted": len(rows),
+              "promptVersion": cfg.prompt_version, "structured": cfg.structured,
+              "rowsAttempted": len(rows),
               "rowsLabeled": 0, "calls": 0, "json_failures": 0, "vocab_failures": 0,
               "prompt_tokens": 0, "completion_tokens": 0, "latencies": [], "errors": []}
 
@@ -363,7 +409,7 @@ def main(argv=None):
               ensure_ascii=False, indent=2)
 
     lat = report["latencies"]
-    summary = {k: report[k] for k in ("provider", "model", "promptVersion",
+    summary = {k: report[k] for k in ("provider", "model", "promptVersion", "structured",
                "rowsAttempted", "rowsLabeled", "calls", "json_failures",
                "vocab_failures", "prompt_tokens", "completion_tokens")}
     summary["avg_latency_s"] = round(sum(lat) / len(lat), 2) if lat else None
