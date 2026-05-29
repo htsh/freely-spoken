@@ -40,6 +40,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 
@@ -77,9 +78,10 @@ class LabelConfig:
     sample_path: str = ""          # JSON list of ids to label (eval subset)
     max_retries: int = 3
     backoff_base: float = 2.0      # seconds; jittered exponential
-    timeout: int = 60
+    timeout: int = 180
     temperature: float = 0.2
     structured: bool = True        # use response_format=json_schema (constrained decoding)
+    concurrency: int = 1           # parallel rows; 1 = sequential
     out_path: str = "outputs/catalog.labeled.json"
     vocab_path: str = V.DEFAULT_VOCAB
     seed_path: str = os.path.join(HERE, "catalog.seed.json")
@@ -119,8 +121,11 @@ class OpenAICompatProvider:
         body = json.dumps(payload_body).encode("utf-8")
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions", data=body,
+            # Explicit UA: some providers front their API with Cloudflare, which
+            # 403s urllib's default "Python-urllib/x.y" signature (CF err 1010).
             headers={"Authorization": f"Bearer {self.api_key}",
-                     "Content-Type": "application/json"})
+                     "Content-Type": "application/json",
+                     "User-Agent": "dhammapada-labeling/1.0"})
         with urllib.request.urlopen(req, timeout=self.timeout) as resp:
             payload = json.load(resp)
         text = payload["choices"][0]["message"]["content"]
@@ -228,10 +233,11 @@ def call_with_retry(provider, system, user, cfg: LabelConfig, response_format=No
             t0 = time.time()
             text, usage = provider.complete(system, user, response_format)
             return text, usage, time.time() - t0
-        except (urllib.error.HTTPError, urllib.error.URLError, ProviderError) as e:
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError,
+                OSError, ProviderError) as e:
             last = e
             code = getattr(e, "code", None)
-            # 4xx other than 429 won't fix on retry
+            # 4xx other than 429 won't fix on retry; timeouts/transient do
             if code is not None and 400 <= code < 500 and code != 429:
                 break
             if attempt < cfg.max_retries:
@@ -305,6 +311,23 @@ def build_pass_schema(pass_name: str, vocab: dict) -> dict:
                    "required": required, "additionalProperties": False}}}
 
 
+# ── Report accumulation (per-row local reports merged in the main thread) ─
+_COUNTERS = ("calls", "json_failures", "vocab_failures",
+             "prompt_tokens", "completion_tokens")
+
+
+def blank_report_counters() -> dict:
+    """Mutable fields label_row touches; one per row so threads never share."""
+    return {**{k: 0 for k in _COUNTERS}, "latencies": [], "errors": []}
+
+
+def merge_report(dst: dict, src: dict) -> None:
+    for k in _COUNTERS:
+        dst[k] += src[k]
+    dst["latencies"].extend(src["latencies"])
+    dst["errors"].extend(src["errors"])
+
+
 def label_row(row, provider, prompts, vocab, cfg, report):
     """Run both passes for one row; return (merged_row_or_None, ok)."""
     rid = row["id"]
@@ -354,6 +377,12 @@ def main(argv=None):
     ap.add_argument("--limit", type=int, default=0, help="label only first N rows")
     ap.add_argument("--sample", default="", help="JSON file: list of ids to label")
     ap.add_argument("--max-retries", type=int, default=3)
+    ap.add_argument("--timeout", type=int, default=180,
+                    help="per-call read timeout in seconds (raise for slow "
+                         "reasoning models)")
+    ap.add_argument("--concurrency", type=int, default=1,
+                    help="parallel rows (thread pool); 1 = sequential. The 429 "
+                         "backoff in call_with_retry handles rate limits.")
     ap.add_argument("--temperature", type=float, default=0.2)
     ap.add_argument("--no-structured", dest="structured", action="store_false",
                     help="disable response_format=json_schema constrained decoding "
@@ -365,6 +394,7 @@ def main(argv=None):
     cfg = LabelConfig(
         provider=args.provider, model=args.model, prompt_version=args.prompt_version,
         limit=args.limit, sample_path=args.sample, max_retries=args.max_retries,
+        timeout=args.timeout, concurrency=args.concurrency,
         temperature=args.temperature, structured=args.structured,
         out_path=args.out, vocab_path=args.vocab)
 
@@ -391,14 +421,37 @@ def main(argv=None):
               "rowsLabeled": 0, "calls": 0, "json_failures": 0, "vocab_failures": 0,
               "prompt_tokens": 0, "completion_tokens": 0, "latencies": [], "errors": []}
 
-    labeled = []
-    for i, row in enumerate(rows, 1):
-        merged, ok = label_row(row, provider, prompts, vocab, cfg, report)
+    # Each row labels into its own local report; the main thread merges them,
+    # so the only shared object (report) is never mutated concurrently. The
+    # provider holds no mutable state, so it is safe to share across threads.
+    def work(idx_row):
+        idx, row = idx_row
+        local = blank_report_counters()
+        merged, ok = label_row(row, provider, prompts, vocab, cfg, local)
+        return idx, row["id"], merged, ok, local
+
+    results = {}
+    n = len(rows)
+    done = 0
+    if cfg.concurrency <= 1:
+        iterator = (work((i, r)) for i, r in enumerate(rows))
+    else:
+        pool = ThreadPoolExecutor(max_workers=cfg.concurrency)
+        futures = [pool.submit(work, (i, r)) for i, r in enumerate(rows)]
+        iterator = (f.result() for f in as_completed(futures))
+
+    for idx, rid, merged, ok, local in iterator:
+        merge_report(report, local)
         if ok:
-            labeled.append(merged)
+            results[idx] = merged
             report["rowsLabeled"] += 1
-        print(f"[{i}/{len(rows)}] {row['id']} {'ok' if ok else 'FAIL'}",
-              file=sys.stderr)
+        done += 1
+        print(f"[{done}/{n}] {rid} {'ok' if ok else 'FAIL'}", file=sys.stderr)
+    if cfg.concurrency > 1:
+        pool.shutdown()
+
+    # preserve input (catalog) order regardless of completion order
+    labeled = [results[i] for i in sorted(results)]
 
     out = {"labeledAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
            "provider": cfg.provider, "model": report["model"],

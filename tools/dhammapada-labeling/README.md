@@ -58,7 +58,10 @@ python3 label_catalog.py --provider fireworks \
 python3 validate.py outputs/eval.fireworks-70b.json --require-labeled --subset
 
 # Full corpus run (after a model is chosen, task 2.6)
-python3 label_catalog.py --provider <p> --model <m> --out outputs/catalog.labeled.json
+# --concurrency parallelizes rows (slow reasoning models otherwise take hours);
+# the 429 backoff in call_with_retry handles rate limits.
+python3 label_catalog.py --provider <p> --model <m> \
+    --concurrency 8 --timeout 240 --out outputs/catalog.labeled.json
 ```
 
 `seed_catalog.py`, `validate.py`, `label_catalog.py`, the prompts, and
@@ -70,7 +73,11 @@ labeling-run intermediates and is gitignored.
 OpenRouter, Together, and Cerebras — pick with `--provider`, set the matching
 `*_API_KEY` env var. `mock` needs no key (offline plumbing). `replicate` is a
 stub: its create-prediction + poll API is not OpenAI-compatible; wire a client
-only if a Replicate-hosted model wins the eval.
+only if a Replicate-hosted model wins the eval. Model IDs are **account-scoped**
+on Fireworks — `GET /v1/models` lists only what's provisioned to your account,
+not the full web catalog; confirm an ID is live before a run. The client sends
+an explicit `User-Agent` because Fireworks fronts its API with Cloudflare, which
+403s urllib's default `Python-urllib/x.y` signature (CF error 1010).
 
 **Structured output (on by default):** the driver sends
 `response_format={"type":"json_schema",...}` with the per-pass schema built

@@ -23,10 +23,15 @@ not differentiators.
 
 ## Candidate models (this round)
 
-- `accounts/fireworks/models/deepseek-v4-flash`
-- `accounts/fireworks/models/qwen3p6-plus`
+- `accounts/fireworks/models/deepseek-v4-pro`
+- `accounts/fireworks/models/kimi-k2p6`
 
-> Both may be reasoning/"thinking" models. Expect higher latency and larger
+> Model IDs are **account-scoped**: `GET /v1/models` returns only what's
+> provisioned to your account, not the full Fireworks catalog. Names on the
+> Fireworks web console (e.g. a `-flash` tier, or Qwen models) may not be live
+> in your account — always confirm against Step 1 before running.
+>
+> DeepSeek v4 is a reasoning/"thinking" model: expect higher latency and larger
 > output-token counts than a plain instruct model. The JSON extractor tolerates
 > reasoning prose around the final object. If a run errors on `response_format`,
 > re-run that model with `--no-structured`.
@@ -49,48 +54,49 @@ Avoid burning a run on a 404:
 ```bash
 curl -s https://api.fireworks.ai/inference/v1/models \
   -H "Authorization: Bearer $FIREWORKS_API_KEY" \
-| python3 -c "import sys,json; m=[x['id'] for x in json.load(sys.stdin)['data']]; [print('FOUND' if i in m else 'MISSING', i) for i in ['accounts/fireworks/models/deepseek-v4-flash','accounts/fireworks/models/qwen3p6-plus']]"
+| python3 -c "import sys,json; m=[x['id'] for x in json.load(sys.stdin)['data']]; [print('FOUND' if i in m else 'MISSING', i) for i in ['accounts/fireworks/models/deepseek-v4-pro','accounts/fireworks/models/kimi-k2p6']]"
 ```
 
-If a model says `MISSING`, list the catalog (`... | python3 -m json.tool`) and
-find the exact ID.
+If a model says `MISSING`, list everything provisioned to your account
+(`... | python3 -c "import sys,json; [print(x['id']) for x in json.load(sys.stdin)['data']]"`)
+and pick from that — the console catalog is broader than your account.
 
-## Step 2 — Run model A (deepseek-v4-flash)
+## Step 2 — Run model A (deepseek-v4-pro)
 
 ```bash
 python3 label_catalog.py \
   --provider fireworks \
-  --model accounts/fireworks/models/deepseek-v4-flash \
+  --model accounts/fireworks/models/deepseek-v4-pro \
   --sample eval_sample.json \
-  --out outputs/eval.deepseek-v4-flash.json
+  --out outputs/eval.deepseek-v4-pro.json
 ```
 
 ## Step 3 — Validate model A
 
 ```bash
-python3 validate.py outputs/eval.deepseek-v4-flash.json --require-labeled --subset
+python3 validate.py outputs/eval.deepseek-v4-pro.json --require-labeled --subset
 ```
 
 Expect `OK: 26 rows valid`. `--subset` skips the full 1..423 coverage check
 (this is only a 26-row sample); `--require-labeled` fails any row missing labels.
 
-## Step 4 — Run + validate model B (qwen3p6-plus)
+## Step 4 — Run + validate model B (kimi-k2p6)
 
 ```bash
 python3 label_catalog.py \
   --provider fireworks \
-  --model accounts/fireworks/models/qwen3p6-plus \
+  --model accounts/fireworks/models/kimi-k2p6 \
   --sample eval_sample.json \
-  --out outputs/eval.qwen3p6-plus.json \
-&& python3 validate.py outputs/eval.qwen3p6-plus.json --require-labeled --subset
+  --out outputs/eval.kimi-k2p6.json \
+&& python3 validate.py outputs/eval.kimi-k2p6.json --require-labeled --subset
 ```
 
 ## Step 5 — Compare
 
 ```bash
 python3 compare_evals.py \
-  outputs/eval.deepseek-v4-flash.json \
-  outputs/eval.qwen3p6-plus.json \
+  outputs/eval.deepseek-v4-pro.json \
+  outputs/eval.kimi-k2p6.json \
   --sample eval_sample.json
 ```
 
@@ -116,10 +122,13 @@ A model that softens `dhp-017`/`dhp-307` tone, or omits `fresh-grief` on
 `dhp-287`/`dhp-277`, fails the safety bar regardless of how clean its JSON is.
 
 Record the chosen provider/model and rationale in the change design or a
-follow-up note (task 3.6), then run the full corpus:
+follow-up note (task 3.6), then run the full corpus. deepseek-v4-pro averages
+~24s/call (it's a reasoning model), so the 828-call corpus is ~6 h sequential —
+use `--concurrency` to parallelize rows (the 429 backoff handles rate limits):
 
 ```bash
 python3 label_catalog.py --provider fireworks --model <winner> \
+  --concurrency 8 --timeout 240 \
   --out outputs/catalog.labeled.json
 python3 validate.py outputs/catalog.labeled.json --require-labeled
 ```
