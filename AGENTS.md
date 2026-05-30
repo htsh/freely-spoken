@@ -26,7 +26,7 @@ npm run typecheck           # tsc --noEmit
 npm test                    # vitest (sentiment-parsing unit tests)
 ```
 
-CI (`.github/workflows/ci.yml`) runs lint + typecheck + vitest on every push/PR to `main`.
+CI (`.github/workflows/ci.yml`) runs two jobs on every push/PR to `main`: `check` (device lint + typecheck + vitest) and `server` (hermetic `pytest` for the FastAPI adapter suite — no network/keys, the LLM call is stubbed).
 
 ### Build variants (product flavors)
 
