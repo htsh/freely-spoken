@@ -1,4 +1,4 @@
-<!-- STATUS (2026-05-29): Sections 1, 2, 3, and 4 (planning) complete.
+<!-- STATUS (2026-05-29): Sections 1, 2, 3, 4 (planning), and 5 (backend impl) complete.
      v1.0 labels over-suppressed (97% crisis-excluded). Fixed via labeling
      prompt v1.1 (task 2.9). Re-labeled full corpus with BOTH deepseek-v4-pro
      and kimi-k2p6 under v1.1, then Claude-adjudicated the two verse-by-verse
@@ -12,8 +12,14 @@
        - task 4.9: sign off the crisis hard-exclusion list as the safety contract.
        - task 2.8 follow-up: confirm the 260 crisis-eligible rows, set
          excludeOnCrisis where any still reads wrong.
-     NEXT: Section 5 backend implementation. Promotion of the adjudicated
-     catalog to server/app/lookup/dhammapada_catalog.json is task 5.2. -->
+     Section 5 done: server/app/lookup/dhammapada.py adapter (shortlist + LLM
+     rerank + crisis filter), catalog promoted to dhammapada_catalog.json,
+     registered in main.py, schemas widened, LookupRequest.crisis_flag threaded,
+     lookup_unavailable payload wired. Verified end-to-end with a stubbed LLM
+     (happy path, bad/dup/quoted-id rejection, unavailable floor) + crisis
+     predicate asserted equal to vocabulary.json.
+     NEXT: Section 6 (device integration) and Section 7 (quality/safety tests —
+     the real pytest suite for the adapter lives here). -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -64,12 +70,12 @@ All concrete artifacts live in `adapter-plan.md` (this change folder).
 
 ## 5. Backend implementation tasks
 
-- [ ] 5.1 Add `server/app/lookup/dhammapada.py` adapter implementing the existing lookup adapter protocol
-- [ ] 5.2 Add catalog loader and in-memory lookup by ID
-- [ ] 5.3 Add ID validation and canonical text enrichment from the catalog
-- [ ] 5.4 Register `dhammapada` in the backend variant registry
-- [ ] 5.5 Update backend schema/types to accept `appVariant: "dhammapada"`
-- [ ] 5.6 Ensure backend logs do not include `anonymizedText` or full passage text
+- [x] 5.1 Add `server/app/lookup/dhammapada.py` adapter implementing the existing lookup adapter protocol (`DhammapadaAdapter.select`; shortlist + LLM rerank + crisis filter)
+- [x] 5.2 Add catalog loader and in-memory lookup by ID (`_load_catalog`, module-cached `_CATALOG`/`_CATALOG_BY_ID`; adjudicated catalog promoted to `server/app/lookup/dhammapada_catalog.json`, 414 rows / 260 crisis-eligible)
+- [x] 5.3 Add ID validation and canonical text enrichment from the catalog (`_validate_entry` rejects nonexistent/excluded/duplicate ids + quoted text; `_to_reference` enriches from local catalog, `displayLabel`→`ref`)
+- [x] 5.4 Register `dhammapada` in the backend variant registry (`main.py` `ADAPTERS`)
+- [x] 5.5 Update backend schema/types to accept `appVariant: "dhammapada"` (`schemas.LookupRequestBody`, `base.LookupRequest.crisis_flag`; `LookupUnavailableResult` payload added)
+- [x] 5.6 Ensure backend logs do not include `anonymizedText` or full passage text (adapter logs nothing itself; `_log_request` still logs only `anonymized_text_len`; new `lookup_unavailable` log carries no text)
 
 ## 6. Device integration tasks
 

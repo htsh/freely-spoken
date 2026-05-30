@@ -29,6 +29,11 @@ class LookupRequest:
     sentiment: str
     emotions: List[str] = field(default_factory=list)
     confidence: float = 0.0
+    # Informational crisis flag computed by the HTTP layer (app.crisis.check).
+    # Most adapters ignore it (Christian/Stoic). The Dhammapada adapter uses it
+    # to hard-exclude high-risk passages from the LLM-visible index before the
+    # prompt is built — see server/app/lookup/dhammapada.py and adapter-plan.md.
+    crisis_flag: bool = False
 
 
 class LookupAdapter(Protocol):

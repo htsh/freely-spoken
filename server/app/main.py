@@ -31,12 +31,18 @@ from app.llm_runner import AllProvidersFailedError  # noqa: E402
 from app.lookup.base import LookupRequest  # noqa: E402
 from app.lookup.bible_api import BibleApiError  # noqa: E402
 from app.lookup.christian import ChristianAdapter, ChristianAdapterError  # noqa: E402
+from app.lookup.dhammapada import (  # noqa: E402
+    DhammapadaAdapter,
+    DhammapadaAdapterError,
+    LookupUnavailableError,
+)
 from app.lookup.stoic import StoicAdapter  # noqa: E402
 from app.schemas import (  # noqa: E402
     ErrorBody,
     ErrorResponse,
     LookupRequestBody,
     LookupResult,
+    LookupUnavailableResult,
     ReferenceModel,
     StoicStubResult,
 )
@@ -53,6 +59,7 @@ logger = logging.getLogger("lookup")
 ADAPTERS = {
     "christian": ChristianAdapter(),
     "stoic": StoicAdapter(),
+    "dhammapada": DhammapadaAdapter(),
 }
 
 
@@ -158,7 +165,34 @@ async def lookup(
                 sentiment=body.sentiment,
                 emotions=body.emotions,
                 confidence=body.confidence,
+                crisis_flag=crisis_flag,
             ))
+    except LookupUnavailableError as e:
+        _log_request(
+            request_id=request_id,
+            client_request_id=x_client_request_id,
+            variant=body.appVariant,
+            body=body,
+            outcome="lookup_unavailable",
+            crisis_flag=crisis_flag,
+            started=started,
+            error=str(e),
+        )
+        payload = LookupUnavailableResult(
+            status="lookup_unavailable",
+            appVariant="dhammapada",
+            message=(
+                "We can't offer a passage for this right now. "
+                "If you're in crisis, please reach out to someone you trust "
+                "or a local support line."
+            ),
+            crisisFlag=crisis_flag,
+        ).model_dump()
+        return JSONResponse(
+            status_code=200,
+            content=payload,
+            headers={"X-Lookup-Request-ID": request_id},
+        )
     except AllProvidersFailedError as e:
         _log_request(
             request_id=request_id,
@@ -176,7 +210,7 @@ async def lookup(
             str(e),
             request_id=request_id,
         )
-    except ChristianAdapterError as e:
+    except (ChristianAdapterError, DhammapadaAdapterError) as e:
         _log_request(
             request_id=request_id,
             client_request_id=x_client_request_id,
