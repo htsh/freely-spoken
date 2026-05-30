@@ -1,5 +1,6 @@
-<!-- STATUS (2026-05-30): Sections 1, 2, 3, 4 (planning), 5 (backend impl), and
-     7 (quality/safety tests) complete.
+<!-- STATUS (2026-05-30): Sections 1, 2, 3, 4 (planning), 5 (backend impl),
+     6 (device integration), and 7 (quality/safety tests) complete. All build
+     sections done.
      v1.0 labels over-suppressed (97% crisis-excluded). Fixed via labeling
      prompt v1.1 (task 2.9). Re-labeled full corpus with BOTH deepseek-v4-pro
      and kimi-k2p6 under v1.1, then Claude-adjudicated the two verse-by-verse
@@ -24,10 +25,15 @@
      stand-in (7.2-live-review-findings.md) — relevance strong; 2 catalog
      tone-flags (grief-under-crisis body verses; speech-regret admonishing tone)
      routed to the human pass; 1 runtime-config note (use constrained JSON decoding).
-     NEXT: Section 6 (device integration). Remaining open gates before release:
-     task 4.9 (sign off crisis exclusion list), task 2.8 follow-up (confirm the
-     260 crisis-eligible rows / set excludeOnCrisis, now informed by the 7.2 flags),
-     and a Gemini confirm run of the live review (recommended, not blocking). -->
+     Section 6 done: AppVariant += dhammapada, "passage" copy + "Idle Ashes"
+     title, lookup_unavailable empty state, buildLookupRequest privacy whitelist
+     (vitest). typecheck/lint/vitest all green (36 tests).
+     Remaining open gates before release (none block code): task 4.9 (sign off
+     crisis exclusion list), task 2.8 follow-up (confirm the 260 crisis-eligible
+     rows / set excludeOnCrisis, now informed by the 7.2 flags), and a Gemini
+     confirm run of the live review (recommended, not blocking).
+     Follow-ups: per-variant native bundle identity (app.config.js for "Idle
+     Ashes" name/slug/bundleId); wire server pytest into CI (currently device-only). -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -87,10 +93,10 @@ All concrete artifacts live in `adapter-plan.md` (this change folder).
 
 ## 6. Device integration tasks
 
-- [ ] 6.1 Update app variant typing/config to allow `dhammapada`
-- [ ] 6.2 Add variant-specific UI copy for Dhammapada results, using "passage" rather than "verse"
-- [ ] 6.3 Confirm the existing results screen can render `primary + alternates` without Bible-specific labels
-- [ ] 6.4 Confirm no raw transcript, audio path, duration, or device identifier is added to the request body
+- [x] 6.1 Update app variant typing/config to allow `dhammapada` (`AppVariant` += `'dhammapada'` in `services/lookup-request.ts`; `getBuildAppVariant()` resolves it; build-time config already env-driven via `EXPO_PUBLIC_APP_VARIANT`). NOTE: per-variant native bundle identity (app.json `name`/`slug`/bundleId → "Idle Ashes"/`idleashes`) still needs app.config.js — flagged as a release-packaging follow-up, not runtime.
+- [x] 6.2 Add variant-specific UI copy for Dhammapada results, using "passage" rather than "verse" (PRIMARY_HEADINGS / LOOKUP_CTA_LABELS / RESPONSE_NOUN_LABELS dhammapada entries; in-app title via `getBrandName` → "Idle Ashes"; new `lookup_unavailable` gentle empty state rendered)
+- [x] 6.3 Confirm the existing results screen can render `primary + alternates` without Bible-specific labels (`ReferenceBlock` is generic — renders `ref`/`text`/`translation`/`shortReason`; dhammapada always carries local text so the fetch-error copy never shows; headings now say "passage")
+- [x] 6.4 Confirm no raw transcript, audio path, duration, or device identifier is added to the request body (`buildLookupRequest` whitelists the 5 fields explicitly; vitest `services/__tests__/lookup-request.test.ts` asserts extras are dropped)
 
 ## 7. Quality and safety verification
 

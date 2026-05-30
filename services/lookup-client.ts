@@ -1,14 +1,9 @@
 import Constants from 'expo-constants';
 
-export type AppVariant = 'christian' | 'stoic';
+import type { AppVariant, LookupRequest } from './lookup-request';
 
-export type LookupRequest = {
-  appVariant: AppVariant;
-  anonymizedText: string;
-  sentiment: string;
-  emotions: string[];
-  confidence: number;
-};
+export type { AppVariant, LookupRequest, LookupRequestSource } from './lookup-request';
+export { buildLookupRequest } from './lookup-request';
 
 export type Reference = {
   ref: string;
@@ -18,7 +13,10 @@ export type Reference = {
   textError?: string | null;
 };
 
-export type ChristianLookupResult = {
+// Reference-selection result shape, shared by the Christian and Dhammapada
+// variants (structurally identical: a primary + alternates, each carrying
+// canonical text the device only renders, never generates).
+export type ReferenceLookupResult = {
   primary: Reference;
   alternates: Reference[];
   provider: string;
@@ -35,7 +33,20 @@ export type StoicStubResult = {
   crisisFlag: boolean;
 };
 
-export type LookupResult = ChristianLookupResult | StoicStubResult;
+// Returned by the Dhammapada adapter when crisis hard-exclusion leaves too few
+// eligible passages to answer safely (HTTP 200, not an error — see server
+// adapter-plan.md §4.8). The device renders a gentle empty state, never a stack.
+export type LookupUnavailableResult = {
+  status: 'lookup_unavailable';
+  appVariant: 'dhammapada';
+  message: string;
+  crisisFlag: boolean;
+};
+
+export type LookupResult =
+  | ReferenceLookupResult
+  | StoicStubResult
+  | LookupUnavailableResult;
 
 const CLIENT_REQUEST_ID_HEADER = 'X-Client-Request-ID';
 const SERVER_REQUEST_ID_HEADER = 'X-Lookup-Request-ID';
@@ -108,6 +119,12 @@ function readConfig(key: string): string | undefined {
 
 export function isStoicStub(result: LookupResult): result is StoicStubResult {
   return (result as StoicStubResult).status === 'not_implemented';
+}
+
+export function isLookupUnavailable(
+  result: LookupResult,
+): result is LookupUnavailableResult {
+  return (result as LookupUnavailableResult).status === 'lookup_unavailable';
 }
 
 export async function lookupSpiritualResponse(req: LookupRequest): Promise<LookupResult> {
@@ -207,5 +224,7 @@ export async function lookupSpiritualResponse(req: LookupRequest): Promise<Looku
 
 export function getBuildAppVariant(): AppVariant {
   const v = readConfig('appVariant');
-  return v === 'stoic' ? 'stoic' : 'christian';
+  if (v === 'stoic') return 'stoic';
+  if (v === 'dhammapada') return 'dhammapada';
+  return 'christian';
 }

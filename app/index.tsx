@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
+import { Brand, getBrandName } from '@/constants/brand';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import type { SentimentResult } from '@/hooks/sentiment-utils';
 import { useTranscriber } from '@/hooks/use-transcriber';
@@ -12,11 +12,13 @@ import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
 import { useSpiritualResponseLookup } from '@/hooks/use-spiritual-response-lookup';
 import {
   AppVariant,
-  ChristianLookupResult,
   LookupRequest,
   LookupResult,
   Reference,
+  ReferenceLookupResult,
+  buildLookupRequest,
   getBuildAppVariant,
+  isLookupUnavailable,
   isStoicStub,
 } from '@/services/lookup-client';
 
@@ -31,16 +33,19 @@ function formatDuration(seconds: number): string {
 const PRIMARY_HEADINGS: Record<AppVariant, string> = {
   christian: 'A verse for you',
   stoic: 'A passage for you',
+  dhammapada: 'A passage for you',
 };
 
 const LOOKUP_CTA_LABELS: Record<AppVariant, string> = {
   christian: 'Find My Verse',
   stoic: 'Find My Passage',
+  dhammapada: 'Find My Passage',
 };
 
 const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
   christian: 'verse',
   stoic: 'passage',
+  dhammapada: 'passage',
 };
 
 const METER_BAR_COUNT = 5;
@@ -139,24 +144,18 @@ export default function HomeScreen() {
     setAppState('idle');
   };
 
-  const buildLookupRequest = (): LookupRequest | null => {
+  const makeLookupRequest = (): LookupRequest | null => {
     if (!sentimentResult) return null;
-    return {
-      appVariant,
-      anonymizedText: sentimentResult.anonymizedText,
-      sentiment: sentimentResult.sentiment,
-      emotions: sentimentResult.emotions,
-      confidence: sentimentResult.confidence,
-    };
+    return buildLookupRequest(appVariant, sentimentResult);
   };
 
   const handleRetryLookup = () => {
-    const req = buildLookupRequest();
+    const req = makeLookupRequest();
     if (req) lookup(req);
   };
 
   const handleSubmitLookup = () => {
-    const req = buildLookupRequest();
+    const req = makeLookupRequest();
     if (!req) {
       setError('No private summary was created');
       return;
@@ -261,7 +260,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>{Brand.name}</ThemedText>
+        <ThemedText type="title" style={styles.title}>{getBrandName(appVariant)}</ThemedText>
 
         {__DEV__ && (
           <Pressable
@@ -563,6 +562,20 @@ function LookupResultBlock({
     );
   }
 
+  if (isLookupUnavailable(result)) {
+    // Crisis hard-exclusion left too few eligible passages. Gentle empty state,
+    // not an error — lead with support if the crisis flag is set.
+    return (
+      <ThemedView style={styles.unavailableBlock}>
+        {result.crisisFlag && <CrisisBanner />}
+        <ThemedText type="subtitle" style={styles.unavailableTitle}>
+          No passage right now
+        </ThemedText>
+        <ThemedText style={styles.unavailableText}>{result.message}</ThemedText>
+      </ThemedView>
+    );
+  }
+
   return (
     <View>
       {result.crisisFlag && <CrisisBanner />}
@@ -626,7 +639,7 @@ function ReferenceBlock({
   );
 }
 
-function ProviderBadge({ result }: { result: ChristianLookupResult }) {
+function ProviderBadge({ result }: { result: ReferenceLookupResult }) {
   return (
     <ThemedText style={styles.providerBadge}>
       {result.provider} · {result.model}
@@ -911,6 +924,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(23,34,53,0.05)',
   },
   stoicStubText: { marginTop: 8, lineHeight: 22 },
+  unavailableBlock: {
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(23,34,53,0.05)',
+  },
+  unavailableTitle: { marginTop: 4 },
+  unavailableText: { marginTop: 8, lineHeight: 22, opacity: 0.85 },
   lookupErrorBlock: { marginTop: 12 },
   retryButton: {
     alignSelf: 'flex-start',
