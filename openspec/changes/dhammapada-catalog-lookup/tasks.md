@@ -1,4 +1,5 @@
-<!-- STATUS (2026-05-29): Sections 1, 2, 3, 4 (planning), and 5 (backend impl) complete.
+<!-- STATUS (2026-05-30): Sections 1, 2, 3, 4 (planning), 5 (backend impl), and
+     7 (quality/safety tests) complete.
      v1.0 labels over-suppressed (97% crisis-excluded). Fixed via labeling
      prompt v1.1 (task 2.9). Re-labeled full corpus with BOTH deepseek-v4-pro
      and kimi-k2p6 under v1.1, then Claude-adjudicated the two verse-by-verse
@@ -18,8 +19,13 @@
      lookup_unavailable payload wired. Verified end-to-end with a stubbed LLM
      (happy path, bad/dup/quoted-id rejection, unavailable floor) + crisis
      predicate asserted equal to vocabulary.json.
-     NEXT: Section 6 (device integration) and Section 7 (quality/safety tests —
-     the real pytest suite for the adapter lives here). -->
+     Section 7 done: hermetic pytest suite in server/tests/ (19 tests, green,
+     mutation-checked). One open item: task 7.2's human review of LIVE LLM
+     selections is still pending (needs a keyed provider run; only the automated
+     on-axis shortlist floor is in place).
+     NEXT: Section 6 (device integration). Remaining open gates before release:
+     task 4.9 (sign off crisis exclusion list), task 2.8 follow-up (confirm the
+     260 crisis-eligible rows / set excludeOnCrisis), and task 7.2 live review. -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -86,14 +92,18 @@ All concrete artifacts live in `adapter-plan.md` (this change folder).
 
 ## 7. Quality and safety verification
 
-- [ ] 7.1 Create fixture anonymized inputs for anger, craving, grief, shame, panic, conflict, speech regret, rumination, gratitude, and restlessness
-- [ ] 7.2 Run fixture lookups and manually review selected primary/alternate passages for relevance and tone
-- [ ] 7.3 Add tests that invalid IDs are rejected and never produce LLM-generated canonical text
-- [ ] 7.4 Add tests that duplicate primary/alternate IDs are rejected
-- [ ] 7.5 Add tests or fixture assertions for vulnerable states avoiding entries tagged with matching `avoidWhen`
-- [ ] 7.6 Verify crisis-flag behavior does not branch the Dhammapada LLM prompt (the LLM is not told a crisis is in progress); the only crisis-driven behavior change SHALL be the catalog/shortlist exclusion enforced in the adapter
-- [ ] 7.7 Add tests that with `crisisFlag = true`, passages with a hard-exclusion tone, matching crisis-adjacent `avoidWhen`, in a designated high-risk theme, or with `excludeOnCrisis == true` never appear in primary or alternates regardless of LLM output
-- [ ] 7.8 Add a test that when crisis-flag exclusion leaves fewer than three eligible passages, the adapter returns `lookup_unavailable` rather than a degraded result
+Hermetic pytest suite under `server/tests/` (stubs `dhammapada.run_llm`, no
+network). 19 tests, all green; mutation-checked (disabling `_excluded` fails the
+crisis tests). Run: `cd server && pip install -e '.[dev]' && pytest`.
+
+- [x] 7.1 Create fixture anonymized inputs for anger, craving, grief, shame, panic, conflict, speech regret, rumination, gratitude, and restlessness (`tests/fixtures/lookup_inputs.json`, 10 inputs incl. expected-axis hints)
+- [ ] 7.2 Run fixture lookups and manually review selected primary/alternate passages for relevance and tone — **automated floor done** (`test_fixtures_shortlist_overlaps_expected_axis` asserts on-axis candidates in the top-5); **human review of live LLM selections still pending** (needs a keyed run against a real provider — no API keys in the dev env used here)
+- [x] 7.3 Add tests that invalid IDs are rejected and never produce LLM-generated canonical text (`test_nonexistent_id_rejected`, `test_quoted_passage_text_rejected`, `test_unparseable_output_rejected`)
+- [x] 7.4 Add tests that duplicate primary/alternate IDs are rejected (`test_duplicate_ids_rejected`)
+- [x] 7.5 Add tests or fixture assertions for vulnerable states avoiding entries tagged with matching `avoidWhen` (`test_avoidwhen_penalizes_matching_vulnerable_state` + the crisis-exclusion tests for the hard guarantee)
+- [x] 7.6 Verify crisis-flag behavior does not branch the Dhammapada LLM prompt (the LLM is not told a crisis is in progress); the only crisis-driven behavior change SHALL be the catalog/shortlist exclusion enforced in the adapter (`test_prompt_does_not_branch_on_crisis` — identical system prompt, no crisis words, only the index shrinks)
+- [x] 7.7 Add tests that with `crisisFlag = true`, passages with a hard-exclusion tone, matching crisis-adjacent `avoidWhen`, in a designated high-risk theme, or with `excludeOnCrisis == true` never appear in primary or alternates regardless of LLM output (`test_crisis_index_excludes_high_risk_passages`, `test_llm_cannot_force_an_excluded_passage`)
+- [x] 7.8 Add a test that when crisis-flag exclusion leaves fewer than three eligible passages, the adapter returns `lookup_unavailable` rather than a degraded result (`test_too_few_eligible_returns_lookup_unavailable` — also asserts the LLM is never called)
 
 ## 8. Deferred infrastructure decisions
 

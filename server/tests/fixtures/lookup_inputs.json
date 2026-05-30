@@ -1,0 +1,95 @@
+{
+  "note": "Anonymized fixture inputs for Dhammapada lookup verification (task 7.1). No PII; these mimic post-anonymization device payloads. `expectUseWhen` / `expectThemes` are sanity hints the shortlist top candidates should overlap (task 7.2 automated floor; human tone review is still required).",
+  "fixtures": [
+    {
+      "name": "anger",
+      "anonymizedText": "Someone cut in line and I felt a hot wave of anger rise up. I wanted to snap at them.",
+      "sentiment": "negative",
+      "emotions": ["anger", "frustration"],
+      "confidence": 82.0,
+      "expectUseWhen": ["anger", "reactivity"],
+      "expectThemes": ["anger", "non-hatred"]
+    },
+    {
+      "name": "craving",
+      "anonymizedText": "I keep craving something I know is not good for me and I cannot stop wanting it.",
+      "sentiment": "negative",
+      "emotions": ["frustration", "anxiety"],
+      "confidence": 74.0,
+      "expectUseWhen": ["craving"],
+      "expectThemes": ["craving", "attachment"]
+    },
+    {
+      "name": "grief",
+      "anonymizedText": "I just lost someone close to me and the grief comes in waves I cannot control.",
+      "sentiment": "negative",
+      "emotions": ["sadness"],
+      "confidence": 88.0,
+      "expectUseWhen": ["discouragement"],
+      "expectThemes": ["impermanence"]
+    },
+    {
+      "name": "shame",
+      "anonymizedText": "I feel so ashamed and embarrassed about what I did. I keep blaming myself for it.",
+      "sentiment": "negative",
+      "emotions": ["sadness", "anxiety"],
+      "confidence": 79.0,
+      "expectUseWhen": [],
+      "expectThemes": []
+    },
+    {
+      "name": "panic",
+      "anonymizedText": "My chest is tight, I feel like I cannot breathe and a wave of panic keeps washing over me.",
+      "sentiment": "negative",
+      "emotions": ["fear", "anxiety"],
+      "confidence": 85.0,
+      "expectUseWhen": ["worry", "restlessness"],
+      "expectThemes": []
+    },
+    {
+      "name": "conflict",
+      "anonymizedText": "I had a big argument and we both said things in the heat of the fight.",
+      "sentiment": "negative",
+      "emotions": ["anger", "frustration"],
+      "confidence": 80.0,
+      "expectUseWhen": ["conflict", "anger"],
+      "expectThemes": ["anger", "speech"]
+    },
+    {
+      "name": "speech-regret",
+      "anonymizedText": "I said something harsh I deeply regret saying and I wish I could take the words back.",
+      "sentiment": "negative",
+      "emotions": ["sadness", "frustration"],
+      "confidence": 77.0,
+      "expectUseWhen": ["speech-regret"],
+      "expectThemes": ["speech"]
+    },
+    {
+      "name": "rumination",
+      "anonymizedText": "I cannot stop thinking about the same problem, my mind loops over it again and again.",
+      "sentiment": "negative",
+      "emotions": ["anxiety", "frustration"],
+      "confidence": 76.0,
+      "expectUseWhen": ["rumination"],
+      "expectThemes": ["mind"]
+    },
+    {
+      "name": "gratitude",
+      "anonymizedText": "I feel really grateful and thankful today for the people who have supported me.",
+      "sentiment": "positive",
+      "emotions": ["gratitude", "joy"],
+      "confidence": 81.0,
+      "expectUseWhen": ["gratitude"],
+      "expectThemes": []
+    },
+    {
+      "name": "restlessness",
+      "anonymizedText": "I feel restless and agitated, I cannot sit still and my thoughts will not settle.",
+      "sentiment": "negative",
+      "emotions": ["anxiety", "frustration"],
+      "confidence": 73.0,
+      "expectUseWhen": ["restlessness"],
+      "expectThemes": []
+    }
+  ]
+}
