@@ -123,8 +123,6 @@ If this policy changes materially, the updated policy will include a new "Last u
 
 ## Contact
 
-For privacy questions or concerns, contact:
+For non-sensitive privacy questions, open a GitHub issue in this repository.
 
-Hitesh Aidasani
-
-<add a contact email before publishing>
+For security reports, suspected privacy vulnerabilities, or anything that includes sensitive personal information, use the private reporting guidance in [SECURITY.md](../SECURITY.md). Do not post secrets, personal data, recordings, transcripts, or private deployment details in a public issue.

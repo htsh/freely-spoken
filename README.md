@@ -449,6 +449,7 @@ Expo prebuild output is regenerated as needed. This keeps source review focused 
 - Backend provider keys belong only in server environment variables or deployment secrets.
 - The backend should be deployed with rate limits/concurrency caps appropriate to the expected traffic.
 - Read [docs/privacy-policy.md](docs/privacy-policy.md) before changing data collection, logging, or network behavior.
+- Read [SECURITY.md](SECURITY.md) before reporting a vulnerability or privacy-sensitive issue.
 
 ## License
 
@@ -456,4 +457,4 @@ MIT. See [LICENSE](LICENSE).
 
 ## Project status
 
-Freely Spoken is an iOS-first product prototype with a working native app flow, hosted backend, CI, and local debugging tools. It is still being prepared for public release: security notes and public-history cleanup are in progress.
+Freely Spoken is an iOS-first product prototype with a working native app flow, hosted backend, CI, and local debugging tools. This repository has been condensed into a clean public-history snapshot for portfolio review.
