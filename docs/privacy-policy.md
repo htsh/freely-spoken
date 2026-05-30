@@ -127,4 +127,4 @@ For privacy questions or concerns, contact:
 
 Hitesh Aidasani
 
-hitesh@gmail.com
+<add a contact email before publishing>
