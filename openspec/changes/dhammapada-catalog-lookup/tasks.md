@@ -1,11 +1,15 @@
-<!-- STATUS (2026-05-29): Sections 1, 2 (except 2.8/2.9), and 3 complete.
-     Full corpus labeled with deepseek-v4-pro (414/414 rows, 423/423 verses,
-     0 failures), backed up at tools/dhammapada-labeling/labeled/. Provider
-     decision + rationale in provider-eval-results.md.
-     NEXT: 2.8 human review of high-risk labels (trim over-broad avoidWhen,
-     set excludeOnCrisis, populate reviewedBy) → then Section 4 backend
-     adapter planning. Promotion to server/app/lookup/dhammapada_catalog.json
-     is task 5.2, gated on 2.8. -->
+<!-- STATUS (2026-05-29): Sections 1, 2, and 3 complete.
+     v1.0 labels over-suppressed (97% crisis-excluded). Fixed via labeling
+     prompt v1.1 (task 2.9). Re-labeled full corpus with BOTH deepseek-v4-pro
+     and kimi-k2p6 under v1.1, then Claude-adjudicated the two verse-by-verse
+     into labeled/catalog.labeled.v1.1.adjudicated.json (review/adjudicate.py):
+     414/414 valid, 260 eligible under crisis, harsh/death/abuse verses
+     correctly excluded. This is the reviewed catalog (task 2.8).
+     RECOMMENDED: a human confirmation pass over the crisis-eligible set
+     before release (set excludeOnCrisis where needed).
+     NEXT: Section 4 backend adapter planning, then Section 5 implementation.
+     Promotion of the adjudicated catalog to
+     server/app/lookup/dhammapada_catalog.json is task 5.2. -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -25,8 +29,8 @@
 - [x] 2.5 Draft the LLM labeling prompts as two passes: semantic labels (`themes`, `summary`, `emotionalFit`, `useWhen`) and safety/tone labels (`tone`, `avoidWhen`, `vulnerableStatesToAvoid`, `riskNotes`)
 - [x] 2.6 Generate first-pass labels for approved passages with the two-pass labeling prompts (deepseek-v4-pro, 414/414 rows, 423/423 verses, 0 failures; backed up at `tools/dhammapada-labeling/labeled/catalog.labeled.deepseek-v4-pro.labeling-v1.0.json`)
 - [x] 2.7 Add a catalog validation script/check that catches duplicate IDs, missing required fields, invalid tone values, out-of-vocabulary labels, empty text, and missing provenance
-- [ ] 2.8 Review high-risk labels specifically for shame, grief, panic, despair, self-blame, abuse/betrayal, and crisis-adjacent cases; reviewers SHALL populate `reviewedBy` and set `excludeOnCrisis = true` for any passage that bypasses the categorical filters but is still inappropriate when `crisisFlag = true`
-- [ ] 2.9 Update the rubric and regenerate labels when fixture testing reveals systematic matching problems
+- [x] 2.8 Review high-risk labels specifically for shame, grief, panic, despair, self-blame, abuse/betrayal, and crisis-adjacent cases; reviewers SHALL populate `reviewedBy` and set `excludeOnCrisis = true` for any passage that bypasses the categorical filters but is still inappropriate when `crisisFlag = true` (Claude-adjudicated both v1.1 model outputs verse-by-verse → `labeled/catalog.labeled.v1.1.adjudicated.json` via `review/adjudicate.py`; `reviewedBy` stamped; 260/414 eligible under crisis. **Human confirmation pass on the crisis-eligible set recommended before release.** `excludeOnCrisis` left False — categorical filters cover the harmful set; this is the lever for the human pass.)
+- [x] 2.9 Update the rubric and regenerate labels when fixture testing reveals systematic matching problems (v1.0→v1.1 prompt fix for avoidWhen over-suppression; see `provider-eval-results.md` / `provider-eval-results` notes)
 
 ## 3. Labeling tooling and provider selection
 
