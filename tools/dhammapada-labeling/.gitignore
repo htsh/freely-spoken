@@ -1,0 +1,10 @@
+# Labeling run intermediates: provider eval dumps, draft label batches,
+# pre-review outputs. Reproducible; not committed. The deterministic
+# canonical seed (catalog.seed.json) IS committed, one level up.
+outputs/*
+!outputs/.gitkeep
+
+# Adjudication scratch (regenerable from labeled/ via review/adjudicate.py).
+# review/adjudicate.py itself IS committed.
+review/dump.txt
+review/adjudication_input.json

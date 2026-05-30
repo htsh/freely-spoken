@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Freely Spoken mark</title>
+  <g fill="none" stroke="#172235" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M34 116v24" stroke-width="6.7"/>
+    <path d="M47 104v48" stroke-width="6.7"/>
+    <path d="M60 88v80" stroke-width="6.7"/>
+    <path d="M74 72v112" stroke-width="6.7"/>
+    <path d="M88 58v140" stroke-width="6.7"/>
+    <path d="M102 72v112" stroke-width="6.7"/>
+    <path d="M116 88v80" stroke-width="6.7"/>
+    <path d="M130 104v48" stroke-width="6.7"/>
+  </g>
+  <path fill="#172235" d="M166 48v126c-12 0-24 6-34 16-4-34-4-78 0-112 10-16 22-26 34-30Z"/>
+  <g fill="none" stroke="#172235" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M181 66c16-2 32 4 43 16v98c-12-10-28-16-43-14" stroke-width="5.8"/>
+    <path d="M174 58v120" stroke-width="5.7"/>
+    <path d="M196 76v92" stroke-width="4.2"/>
+    <path d="M209 82v90" stroke-width="3.8"/>
+  </g>
+  <path d="M132 198c28 12 64 12 92 0" fill="none" stroke="#B18A55" stroke-width="4.4" stroke-linecap="round"/>
+</svg>

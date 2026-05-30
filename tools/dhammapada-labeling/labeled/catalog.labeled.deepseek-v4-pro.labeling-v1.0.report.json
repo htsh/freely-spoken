@@ -1,0 +1,16 @@
+{
+  "provider": "fireworks",
+  "model": "accounts/fireworks/models/deepseek-v4-pro",
+  "promptVersion": "labeling-v1.0",
+  "structured": true,
+  "rowsAttempted": 414,
+  "rowsLabeled": 414,
+  "calls": 828,
+  "json_failures": 0,
+  "vocab_failures": 0,
+  "prompt_tokens": 794968,
+  "completion_tokens": 848749,
+  "avg_latency_s": 26.15,
+  "json_valid_rate": 1.0,
+  "errors": []
+}

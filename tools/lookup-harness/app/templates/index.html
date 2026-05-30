@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lookup Harness</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 1.5em;
+        margin-bottom: 0.25em;
+      }
+      .subtitle {
+        color: #666;
+        font-size: 0.9em;
+        margin-bottom: 1.5em;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      label {
+        font-weight: 600;
+        font-size: 0.9em;
+      }
+      select,
+      textarea,
+      button {
+        padding: 10px;
+        font-size: 1em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        background: #0066cc;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover {
+        background: #0052a3;
+      }
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .muted {
+        color: #888;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lookup Harness</h1>
+    <p class="subtitle">
+      Mac-local tool for iterating on verse-selection prompts
+    </p>
+
+    <form action="/run" method="post">
+      <label for="variant">Variant</label>
+      <select name="variant" id="variant">
+        <option value="christian" selected>Christian</option>
+        <option value="stoic" disabled>Stoic — catalog not yet seeded</option>
+      </select>
+
+      <label for="provider">LLM Provider</label>
+      <select name="provider" id="provider">
+        <option value="gemini" selected>Gemini Flash</option>
+        <option value="openrouter">OpenRouter Free</option>
+        <option value="groq">Groq Llama 3.1 8B</option>
+      </select>
+
+      <label
+        style="display: flex; align-items: center; gap: 8px; font-weight: 500"
+      >
+        <input
+          type="checkbox"
+          name="fallback"
+          value="true"
+          checked
+          style="width: auto"
+        />
+        Enable fallback on 429 / timeout
+      </label>
+
+      <label for="sample_id">Sample</label>
+      <select name="sample_id" id="sample_id">
+        <option value="">-- Select a sample or enter text below --</option>
+        {% for sample in samples %}
+        <option value="{{ sample.id }}">
+          {{ sample.id }}: {{ sample.text[:70] }}{% if sample.text|length > 70
+          %}...{% endif %}
+        </option>
+        {% endfor %}
+      </select>
+
+      <label for="text">Or enter your own text</label>
+      <textarea
+        name="text"
+        id="text"
+        rows="4"
+        placeholder="Type or paste text to analyze..."
+      ></textarea>
+      <p class="muted">Leave sample unselected to use the text above.</p>
+
+      <button type="submit">Run</button>
+    </form>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{
+  "purpose": "Representative 26-passage sample for provider/model evaluation before the full-corpus labeling run. Chosen to exercise both the matching axes and the safety/tone machinery. Every crisis-hard-exclusion category appears at least once, so the eval reveals whether a model's safety judgment is sound — not just whether it matches well.",
+  "promptVersion": "labeling-v1.0",
+  "coverage": {
+    "mind/thought": ["dhp-001", "dhp-002", "dhp-033", "dhp-035"],
+    "anger/non-hatred": ["dhp-005", "dhp-197", "dhp-222", "dhp-223"],
+    "craving/attachment": ["dhp-251", "dhp-348"],
+    "self-mastery": ["dhp-103", "dhp-160"],
+    "mindfulness/earnestness": ["dhp-021"],
+    "speech": ["dhp-133"],
+    "wise/fool": ["dhp-060", "dhp-076", "dhp-080"],
+    "self-reflection (shame-adjacent)": ["dhp-050"],
+    "peace/contentment": ["dhp-204"],
+    "liberation/joy (grouped couplet)": ["dhp-153"],
+    "HIGH-RISK warning tone": ["dhp-017"],
+    "HIGH-RISK death theme": ["dhp-129", "dhp-287"],
+    "HIGH-RISK impermanence/grief-adjacent": ["dhp-277", "dhp-287"],
+    "HIGH-RISK moral-rebuke theme": ["dhp-307"],
+    "HIGH-RISK ascetic-discipline theme": ["dhp-369"]
+  },
+  "evalNotes": "For each candidate model, run: python label_catalog.py --provider <p> --model <m> --sample eval_sample.json --out outputs/eval.<p>-<m>.json ; then validate.py outputs/eval.<...>.json --require-labeled --subset for JSON/vocab compliance, and human-read the safety labels on the HIGH-RISK ids to judge tone judgment. A model that mislabels dhp-017/dhp-307 tone as gentle/direct, or omits fresh-grief from dhp-287 avoidWhen, fails the safety bar regardless of cost.",
+  "ids": [
+    "dhp-001", "dhp-002", "dhp-005", "dhp-017", "dhp-021", "dhp-033", "dhp-035",
+    "dhp-050", "dhp-060", "dhp-076", "dhp-080", "dhp-103", "dhp-129", "dhp-133",
+    "dhp-153", "dhp-160", "dhp-197", "dhp-204", "dhp-222", "dhp-223", "dhp-251",
+    "dhp-277", "dhp-287", "dhp-307", "dhp-348", "dhp-369"
+  ]
+}
