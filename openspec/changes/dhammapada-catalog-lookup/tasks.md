@@ -1,15 +1,19 @@
-<!-- STATUS (2026-05-29): Sections 1, 2, and 3 complete.
+<!-- STATUS (2026-05-29): Sections 1, 2, 3, and 4 (planning) complete.
      v1.0 labels over-suppressed (97% crisis-excluded). Fixed via labeling
      prompt v1.1 (task 2.9). Re-labeled full corpus with BOTH deepseek-v4-pro
      and kimi-k2p6 under v1.1, then Claude-adjudicated the two verse-by-verse
      into labeled/catalog.labeled.v1.1.adjudicated.json (review/adjudicate.py):
      414/414 valid, 260 eligible under crisis, harsh/death/abuse verses
      correctly excluded. This is the reviewed catalog (task 2.8).
-     RECOMMENDED: a human confirmation pass over the crisis-eligible set
-     before release (set excludeOnCrisis where needed).
-     NEXT: Section 4 backend adapter planning, then Section 5 implementation.
-     Promotion of the adjudicated catalog to
-     server/app/lookup/dhammapada_catalog.json is task 5.2. -->
+     Section 4 backend adapter planning is captured in adapter-plan.md
+     (concrete selector prompt, index shape, malformed handling, shortlist
+     heuristic + lexicons, Reference mapping, frozen crisis predicate).
+     RECOMMENDED before release (two human gates, do together):
+       - task 4.9: sign off the crisis hard-exclusion list as the safety contract.
+       - task 2.8 follow-up: confirm the 260 crisis-eligible rows, set
+         excludeOnCrisis where any still reads wrong.
+     NEXT: Section 5 backend implementation. Promotion of the adjudicated
+     catalog to server/app/lookup/dhammapada_catalog.json is task 5.2. -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -44,17 +48,19 @@
 
 ## 4. Backend adapter planning
 
-- [ ] 4.1 Draft the Dhammapada selector system prompt requiring ID-only selection from the approved catalog index
-- [ ] 4.2 Define the compact catalog index shape passed to the LLM, excluding full canonical text
-- [ ] 4.3 Define malformed-output handling: invalid JSON, missing fields, nonexistent IDs, duplicate IDs, too many/few alternates, and quoted passage text in `shortReason`
-- [ ] 4.4 Implement deterministic shortlist + LLM rerank as the default selection path; treat full-index selection as a fallback triggered only when shortlist measurements show systematic misses
-- [ ] 4.4a Define the shortlist heuristic: match `useWhen` and `themes` against sentiment/emotions/anonymized keywords; exclude `avoidWhen` conflicts; produce top 30-60 candidate records
-- [ ] 4.4b Add metrics or fixture checks to detect when shortlist misses the best passage and full-index would have caught it (justification gate for the fallback path)
-- [ ] 4.5 Define how Dhammapada references map onto the existing `Reference` response fields
-- [ ] 4.6 Define the crisis-flag hard-exclusion list: when `crisisFlag = true`, the catalog/shortlist SHALL exclude every passage where `tone` is a harsh tone designated in the frozen vocabulary (e.g. `stern`), any `avoidWhen` value matches a crisis-adjacent state (`acute shame`, `panic`, `despair`, `self-blame`, `abuse disclosure`, `fresh grief`, `suicidal ideation`), `themes` contains a designated high-risk category (death, ascetic-discipline, moral-rebuke), or `excludeOnCrisis == true`
-- [ ] 4.7 Confirm exclusion happens in the adapter, before the LLM index is constructed — the LLM SHALL NOT be told a crisis is in progress; it simply sees a smaller, safer index
-- [ ] 4.8 Define behavior when crisis-flag exclusion leaves fewer than three eligible passages: the adapter SHALL return a `lookup_unavailable` response rather than relax the filter or substitute LLM-generated content
-- [ ] 4.9 Require human review of the full crisis-flag hard-exclusion list (including the set of high-risk tones and themes from the frozen vocabulary) before any release
+All concrete artifacts live in `adapter-plan.md` (this change folder).
+
+- [x] 4.1 Draft the Dhammapada selector system prompt requiring ID-only selection from the approved catalog index (adapter-plan.md §4.1)
+- [x] 4.2 Define the compact catalog index shape passed to the LLM, excluding full canonical text (adapter-plan.md §4.2 — id/themes/useWhen/tone/summary; avoidWhen deliberately withheld so the LLM cannot reason about crisis state)
+- [x] 4.3 Define malformed-output handling: invalid JSON, missing fields, nonexistent IDs, duplicate IDs, too many/few alternates, and quoted passage text in `shortReason` (adapter-plan.md §4.3 — `DhammapadaAdapterError`; structural quotation heuristic, no liturgical phrase list)
+- [x] 4.4 Implement deterministic shortlist + LLM rerank as the default selection path; treat full-index selection as a fallback triggered only when shortlist measurements show systematic misses (adapter-plan.md §4.4 — full-index fallback deferred to task 8.1, gated on 4.4b)
+- [x] 4.4a Define the shortlist heuristic: match `useWhen` and `themes` against sentiment/emotions/anonymized keywords; exclude `avoidWhen` conflicts; produce top 30-60 candidate records (adapter-plan.md §4.4a — additive score, checked-in USEWHEN/THEME/vulnerable lexicons, default top 45)
+- [x] 4.4b Add metrics or fixture checks to detect when shortlist misses the best passage and full-index would have caught it (justification gate for the fallback path) (adapter-plan.md §4.4b — fixture-based shortlist-vs-full miss-rate, ≥10% threshold to build the fallback)
+- [x] 4.5 Define how Dhammapada references map onto the existing `Reference` response fields (adapter-plan.md §4.5 — `displayLabel`→`ref`, local `text`, constant Müller `translation`, `textError` always None)
+- [x] 4.6 Define the crisis-flag hard-exclusion list: when `crisisFlag = true`, the catalog/shortlist SHALL exclude every passage where `tone` is a harsh tone designated in the frozen vocabulary (e.g. `stern`), any `avoidWhen` value matches a crisis-adjacent state (`acute shame`, `panic`, `despair`, `self-blame`, `abuse disclosure`, `fresh grief`, `suicidal ideation`), `themes` contains a designated high-risk category (death, ascetic-discipline, moral-rebuke), or `excludeOnCrisis == true` (adapter-plan.md §4.6 — predicate reads from `vocabulary.json crisisHardExclusion`; 260/414 eligible)
+- [x] 4.7 Confirm exclusion happens in the adapter, before the LLM index is constructed — the LLM SHALL NOT be told a crisis is in progress; it simply sees a smaller, safer index (adapter-plan.md §4.7 — prompt has no crisis language; excluded ids never enter the index)
+- [x] 4.8 Define behavior when crisis-flag exclusion leaves fewer than three eligible passages: the adapter SHALL return a `lookup_unavailable` response rather than relax the filter or substitute LLM-generated content (adapter-plan.md §4.8 — checked before shortlisting; `LookupUnavailableError` → structured payload; device gate in 6.2)
+- [ ] 4.9 Require human review of the full crisis-flag hard-exclusion list (including the set of high-risk tones and themes from the frozen vocabulary) before any release — **OPEN human gate**, do together with the task 2.8 crisis-eligible confirmation pass (adapter-plan.md §4.9)
 
 ## 5. Backend implementation tasks
 
