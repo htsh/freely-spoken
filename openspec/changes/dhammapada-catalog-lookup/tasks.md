@@ -32,8 +32,11 @@
      crisis exclusion list), task 2.8 follow-up (confirm the 260 crisis-eligible
      rows / set excludeOnCrisis, now informed by the 7.2 flags), and a Gemini
      confirm run of the live review (recommended, not blocking).
-     Follow-ups: per-variant native bundle identity (app.config.js for "Idle
-     Ashes" name/slug/bundleId); wire server pytest into CI (currently device-only). -->
+     Follow-ups: per-variant native bundle identity DONE (app.config.js product
+     flavors + eas.json *-idleashes profiles → "Idle Ashes" name/bundleId/scheme
+     + renamed permission strings; christian unchanged). Still open: real Apple
+     bundle id / EAS project id + dedicated Idle Ashes icon before its first store
+     build; wire server pytest into CI (currently device-only). -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 

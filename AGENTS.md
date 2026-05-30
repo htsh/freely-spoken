@@ -28,6 +28,19 @@ npm test                    # vitest (sentiment-parsing unit tests)
 
 CI (`.github/workflows/ci.yml`) runs lint + typecheck + vitest on every push/PR to `main`.
 
+### Build variants (product flavors)
+
+One codebase ships as multiple App Store apps, selected at build time by `EXPO_PUBLIC_APP_VARIANT` (`christian` → **Freely Spoken**, `dhammapada` → **Idle Ashes**, `stoic` → unreleased stub). `app.config.js` reads the variant and overrides native identity (display name, `ios.bundleIdentifier`, `android.package`, URL `scheme`, icon) and rewrites the product name inside every permission string, over the static `app.json` base (Christian/Freely Spoken default). The runtime JS reads the same variant via `getBuildAppVariant()` (`services/lookup-request.ts`). **Do not put variant identity back into `app.json`** — per-variant overrides live in `app.config.js` `VARIANTS`.
+
+```bash
+npx expo run:ios --device                                   # Freely Spoken (default)
+EXPO_PUBLIC_APP_VARIANT=dhammapada npx expo run:ios --device # Idle Ashes
+eas build --profile production               # Freely Spoken
+eas build --profile production-idleashes     # Idle Ashes (profiles in eas.json)
+```
+
+Each variant is a separate App Store entry. The Idle Ashes bundle ids in `app.config.js` are placeholders under `com.htsh` and need real Apple identifiers (and likely its own EAS project id) before its first store build; a dedicated Idle Ashes icon/splash is TODO. The backend stays one shared deployment that dispatches by `appVariant`.
+
 ```bash
 # Server (server/, FastAPI, deployed to Fly.io)
 cd server && cp .env.example .env   # fill GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, LOOKUP_CLIENT_SECRET

@@ -29,6 +29,22 @@ npm test                    # vitest (sentiment-parsing unit tests)
 
 CI (`.github/workflows/ci.yml`) runs lint + typecheck + vitest on every push/PR to `main`.
 
+### Build variants (product flavors)
+
+One codebase ships as multiple App Store apps, selected at build time by `EXPO_PUBLIC_APP_VARIANT` (`christian` → **Freely Spoken**, `dhammapada` → **Idle Ashes**, `stoic` → unreleased stub). `app.config.js` is the dynamic Expo config: it reads the variant and overrides native identity (display name, `ios.bundleIdentifier`, `android.package`, URL `scheme`, icon) and rewrites the product name inside every permission string, over the static `app.json` base (which is the Christian/Freely Spoken default). The runtime JS reads the same variant via `getBuildAppVariant()` (`services/lookup-request.ts`). **Do not put variant identity back into `app.json`** — it stays the base; per-variant overrides live in `app.config.js` `VARIANTS`.
+
+```bash
+# local device run
+npx expo run:ios --device                                   # Freely Spoken (default)
+EXPO_PUBLIC_APP_VARIANT=dhammapada npx expo run:ios --device # Idle Ashes
+
+# EAS builds (profiles in eas.json; *-idleashes set the variant env)
+eas build --profile production               # Freely Spoken
+eas build --profile production-idleashes     # Idle Ashes
+```
+
+Each variant is a separate App Store entry (own bundle id, icons, screenshots, privacy label). The Idle Ashes bundle ids in `app.config.js` are placeholders under the existing `com.htsh` namespace and need real Apple identifiers (and likely its own EAS project id) before its first store build; a dedicated Idle Ashes icon/splash is still TODO (falls back to the shared icon). The backend stays one shared deployment that dispatches by `appVariant` — variants are not separate servers.
+
 Server (`server/`, FastAPI deployed to Fly.io):
 
 ```bash

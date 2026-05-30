@@ -8,6 +8,20 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "christian"
+      },
+      "ios": {
+        "buildConfiguration": "Debug"
+      }
+    },
+    "development-idleashes": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "environment": "development",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+      },
       "ios": {
         "buildConfiguration": "Debug"
       }
@@ -15,6 +29,19 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "christian"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "preview-idleashes": {
+      "distribution": "internal",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+      },
       "ios": {
         "buildConfiguration": "Release"
       }
@@ -22,6 +49,19 @@
     "production": {
       "distribution": "store",
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "christian"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "production-idleashes": {
+      "distribution": "store",
+      "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+      },
       "ios": {
         "buildConfiguration": "Release"
       }
@@ -29,6 +69,9 @@
   },
   "submit": {
     "production": {
+      "ios": {}
+    },
+    "production-idleashes": {
       "ios": {}
     }
   }
