@@ -20,12 +20,14 @@
      (happy path, bad/dup/quoted-id rejection, unavailable floor) + crisis
      predicate asserted equal to vocabulary.json.
      Section 7 done: hermetic pytest suite in server/tests/ (19 tests, green,
-     mutation-checked). One open item: task 7.2's human review of LIVE LLM
-     selections is still pending (needs a keyed provider run; only the automated
-     on-axis shortlist floor is in place).
+     mutation-checked). Task 7.2 live review also done via a Fireworks kimi-k2p6
+     stand-in (7.2-live-review-findings.md) — relevance strong; 2 catalog
+     tone-flags (grief-under-crisis body verses; speech-regret admonishing tone)
+     routed to the human pass; 1 runtime-config note (use constrained JSON decoding).
      NEXT: Section 6 (device integration). Remaining open gates before release:
      task 4.9 (sign off crisis exclusion list), task 2.8 follow-up (confirm the
-     260 crisis-eligible rows / set excludeOnCrisis), and task 7.2 live review. -->
+     260 crisis-eligible rows / set excludeOnCrisis, now informed by the 7.2 flags),
+     and a Gemini confirm run of the live review (recommended, not blocking). -->
 
 ## 1. Source and rights review (blocking gate — no section 2+ work begins until 1.1-1.3 land)
 
@@ -97,7 +99,7 @@ network). 19 tests, all green; mutation-checked (disabling `_excluded` fails the
 crisis tests). Run: `cd server && pip install -e '.[dev]' && pytest`.
 
 - [x] 7.1 Create fixture anonymized inputs for anger, craving, grief, shame, panic, conflict, speech regret, rumination, gratitude, and restlessness (`tests/fixtures/lookup_inputs.json`, 10 inputs incl. expected-axis hints)
-- [ ] 7.2 Run fixture lookups and manually review selected primary/alternate passages for relevance and tone — **automated floor done** (`test_fixtures_shortlist_overlaps_expected_axis` asserts on-axis candidates in the top-5); **human review of live LLM selections still pending** (needs a keyed run against a real provider — no API keys in the dev env used here)
+- [x] 7.2 Run fixture lookups and manually review selected primary/alternate passages for relevance and tone — ran the real adapter over all 10 fixtures (+ grief/shame/panic under crisis) via Fireworks `kimi-k2p6` stand-in (`tools/dhammapada-labeling/review/live_lookup_review.py`); relevance strong, tone mostly gentle. Findings + 2 catalog tone-flags + 1 runtime-config note in `7.2-live-review-findings.md`. Gemini confirm run recommended before release (not blocking).
 - [x] 7.3 Add tests that invalid IDs are rejected and never produce LLM-generated canonical text (`test_nonexistent_id_rejected`, `test_quoted_passage_text_rejected`, `test_unparseable_output_rejected`)
 - [x] 7.4 Add tests that duplicate primary/alternate IDs are rejected (`test_duplicate_ids_rejected`)
 - [x] 7.5 Add tests or fixture assertions for vulnerable states avoiding entries tagged with matching `avoidWhen` (`test_avoidwhen_penalizes_matching_vulnerable_state` + the crisis-exclusion tests for the hard guarantee)
