@@ -20,6 +20,25 @@ private enum Brand {
   static let ink = NSColor(hex: 0x111827)
 }
 
+private enum IdleAshesBrand {
+  static let name = "Idle Ashes"
+  static let charcoalHex = "#2B2A25"
+  static let ashHex = "#7C756B"
+  static let ivoryHex = "#F4EEE6"
+  static let clayHex = "#A66036"
+  static let emberHex = "#C1784A"
+  static let panelHex = "#E9DFD2"
+  static let inkHex = "#24231F"
+
+  static let charcoal = NSColor(hex: 0x2B2A25)
+  static let ash = NSColor(hex: 0x7C756B)
+  static let ivory = NSColor(hex: 0xF4EEE6)
+  static let clay = NSColor(hex: 0xA66036)
+  static let ember = NSColor(hex: 0xC1784A)
+  static let panel = NSColor(hex: 0xE9DFD2)
+  static let ink = NSColor(hex: 0x24231F)
+}
+
 private extension NSColor {
   convenience init(hex: UInt32, alpha: CGFloat = 1) {
     self.init(
@@ -342,6 +361,62 @@ private func drawBrandMark(
   }
 }
 
+private func drawIdleAshesMark(
+  in rect: NSRect,
+  markColor: NSColor = IdleAshesBrand.charcoal,
+  accentColor: NSColor = IdleAshesBrand.ember,
+  includeAccent: Bool = true
+) {
+  let side = min(rect.width, rect.height)
+  let scale = side / 256
+  let origin = NSPoint(x: rect.midX - side / 2, y: rect.midY - side / 2)
+
+  func path(_ points: [(CGFloat, CGFloat)], close: Bool = true) -> NSBezierPath {
+    let p = NSBezierPath()
+    p.move(to: point(points[0].0, points[0].1, origin, scale))
+    for item in points.dropFirst() {
+      p.line(to: point(item.0, item.1, origin, scale))
+    }
+    if close { p.close() }
+    return p
+  }
+
+  let fragments: [[(CGFloat, CGFloat)]] = [
+    [(123, 22), (149, 44), (139, 76), (109, 82), (91, 56), (101, 31)],
+    [(73, 82), (101, 100), (94, 132), (63, 142), (44, 117), (50, 91)],
+    [(157, 84), (188, 98), (194, 132), (169, 154), (139, 143), (134, 111)],
+    [(96, 151), (132, 142), (157, 166), (145, 199), (108, 207), (82, 184)],
+    [(154, 170), (190, 159), (211, 184), (199, 219), (162, 229), (137, 204)],
+  ]
+
+  for (index, fragment) in fragments.enumerated() {
+    let alpha = index == 0 ? 0.34 : 1
+    markColor.withAlphaComponent(alpha).setFill()
+    path(fragment).fill()
+  }
+
+  if includeAccent {
+    let ember = NSBezierPath(ovalIn: NSRect(
+      x: origin.x + 117 * scale,
+      y: origin.y + 136 * scale,
+      width: 24 * scale,
+      height: 24 * scale
+    ))
+    accentColor.setFill()
+    ember.fill()
+  }
+}
+
+private func drawIdleAshesWordmark(canvasWidth: CGFloat, topY: CGFloat, size: CGFloat) {
+  _ = drawCenteredText(
+    "idle ashes",
+    y: topY,
+    size: size,
+    color: IdleAshesBrand.ink,
+    canvasWidth: canvasWidth
+  )
+}
+
 private func serifFont(size: CGFloat) -> NSFont {
   let names = [
     "Georgia-Bold",
@@ -440,6 +515,64 @@ private func writeRasterAssets() throws {
   try writePNG(width: 1200, height: 420, background: nil, to: brandURL.appendingPathComponent("freely-spoken-wordmark.png")) {
     drawWordmark(canvasWidth: 1200, topY: 30, large: true)
   }
+
+  try writeIdleAshesRasterAssets()
+}
+
+private func writeIdleAshesRasterAssets() throws {
+  let iconURL = imageURL.appendingPathComponent("idle-ashes-icon.png")
+  let splashURL = imageURL.appendingPathComponent("idle-ashes-splash-icon.png")
+  let faviconURL = imageURL.appendingPathComponent("idle-ashes-favicon.png")
+  let androidBackgroundURL = imageURL.appendingPathComponent("idle-ashes-android-icon-background.png")
+
+  try writePNG(width: 1024, height: 1024, background: IdleAshesBrand.ivory, hasAlpha: false, to: iconURL) {
+    IdleAshesBrand.ivory.setFill()
+    NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
+    IdleAshesBrand.panel.withAlphaComponent(0.45).setFill()
+    NSBezierPath(ovalIn: NSRect(x: 198, y: 188, width: 628, height: 628)).fill()
+    drawIdleAshesMark(in: NSRect(x: 246, y: 180, width: 532, height: 532))
+  }
+  try flattenOpaquePNG(at: iconURL, background: IdleAshesBrand.ivory)
+
+  try writePNG(width: 1024, height: 1024, background: IdleAshesBrand.ivory, hasAlpha: false, to: splashURL) {
+    IdleAshesBrand.ivory.setFill()
+    NSRect(x: 0, y: 0, width: 1024, height: 1024).fill()
+    drawIdleAshesMark(in: NSRect(x: 386, y: 170, width: 252, height: 252))
+    drawIdleAshesWordmark(canvasWidth: 1024, topY: 442, size: 132)
+  }
+  try flattenOpaquePNG(at: splashURL, background: IdleAshesBrand.ivory)
+
+  try writePNG(width: 48, height: 48, background: IdleAshesBrand.ivory, hasAlpha: false, to: faviconURL) {
+    drawIdleAshesMark(in: NSRect(x: 6, y: 6, width: 36, height: 36), includeAccent: false)
+  }
+  try flattenOpaquePNG(at: faviconURL, background: IdleAshesBrand.ivory)
+
+  try writePNG(width: 512, height: 512, background: IdleAshesBrand.ivory, hasAlpha: false, to: androidBackgroundURL) {}
+  try flattenOpaquePNG(at: androidBackgroundURL, background: IdleAshesBrand.ivory)
+
+  try writePNG(width: 512, height: 512, background: nil, to: imageURL.appendingPathComponent("idle-ashes-android-icon-foreground.png")) {
+    drawIdleAshesMark(in: NSRect(x: 98, y: 98, width: 316, height: 316))
+  }
+
+  try writePNG(width: 432, height: 432, background: nil, to: imageURL.appendingPathComponent("idle-ashes-android-icon-monochrome.png")) {
+    drawIdleAshesMark(in: NSRect(x: 58, y: 58, width: 316, height: 316), markColor: IdleAshesBrand.ink, accentColor: IdleAshesBrand.ink, includeAccent: false)
+  }
+
+  try writePNG(width: 512, height: 512, background: nil, to: brandURL.appendingPathComponent("idle-ashes-mark.png")) {
+    drawIdleAshesMark(in: NSRect(x: 58, y: 58, width: 396, height: 396))
+  }
+
+  try writePNG(width: 1366, height: 768, background: IdleAshesBrand.ivory, hasAlpha: false, to: brandURL.appendingPathComponent("idle-ashes-lockup.png")) {
+    IdleAshesBrand.ivory.setFill()
+    NSRect(x: 0, y: 0, width: 1366, height: 768).fill()
+    drawIdleAshesMark(in: NSRect(x: 555, y: 132, width: 256, height: 256))
+    drawIdleAshesWordmark(canvasWidth: 1366, topY: 440, size: 150)
+  }
+  try flattenOpaquePNG(at: brandURL.appendingPathComponent("idle-ashes-lockup.png"), background: IdleAshesBrand.ivory)
+
+  try writePNG(width: 1200, height: 420, background: nil, to: brandURL.appendingPathComponent("idle-ashes-wordmark.png")) {
+    drawIdleAshesWordmark(canvasWidth: 1200, topY: 120, size: 150)
+  }
 }
 
 private func markSVG() -> String {
@@ -512,10 +645,53 @@ private func lockupSVG() -> String {
   """
 }
 
+private func idleAshesMarkSVG() -> String {
+  let charcoal = IdleAshesBrand.charcoalHex
+  let ember = IdleAshesBrand.emberHex
+  return """
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+    <title id="title">Idle Ashes mark</title>
+    <g fill="\(charcoal)">
+      <path opacity="0.34" d="M123 22 149 44 139 76 109 82 91 56 101 31Z"/>
+      <path d="M73 82 101 100 94 132 63 142 44 117 50 91Z"/>
+      <path d="M157 84 188 98 194 132 169 154 139 143 134 111Z"/>
+      <path d="M96 151 132 142 157 166 145 199 108 207 82 184Z"/>
+      <path d="M154 170 190 159 211 184 199 219 162 229 137 204Z"/>
+    </g>
+    <circle cx="129" cy="148" r="12" fill="\(ember)"/>
+  </svg>
+  """
+}
+
+private func idleAshesWordmarkSVG() -> String {
+  """
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" role="img" aria-labelledby="title">
+    <title id="title">Idle Ashes wordmark</title>
+    <text x="450" y="160" text-anchor="middle" fill="\(IdleAshesBrand.inkHex)" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="700">idle ashes</text>
+  </svg>
+  """
+}
+
+private func idleAshesLockupSVG() -> String {
+  """
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1366 768" role="img" aria-labelledby="title">
+    <title id="title">Idle Ashes logo lockup</title>
+    <rect width="1366" height="768" fill="\(IdleAshesBrand.ivoryHex)"/>
+    <g transform="translate(555 132)">
+  \(idleAshesMarkSVG().replacingOccurrences(of: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 256 256\" role=\"img\" aria-labelledby=\"title\">\n  <title id=\"title\">Idle Ashes mark</title>\n", with: "").replacingOccurrences(of: "\n</svg>", with: ""))
+    </g>
+    <text x="683" y="540" text-anchor="middle" fill="\(IdleAshesBrand.inkHex)" font-family="Georgia, 'Times New Roman', serif" font-size="150" font-weight="700">idle ashes</text>
+  </svg>
+  """
+}
+
 private func writeSVGAssets() throws {
   try writeText(markSVG(), to: brandURL.appendingPathComponent("freely-spoken-mark.svg"))
   try writeText(wordmarkSVG(), to: brandURL.appendingPathComponent("freely-spoken-wordmark.svg"))
   try writeText(lockupSVG(), to: brandURL.appendingPathComponent("freely-spoken-lockup.svg"))
+  try writeText(idleAshesMarkSVG(), to: brandURL.appendingPathComponent("idle-ashes-mark.svg"))
+  try writeText(idleAshesWordmarkSVG(), to: brandURL.appendingPathComponent("idle-ashes-wordmark.svg"))
+  try writeText(idleAshesLockupSVG(), to: brandURL.appendingPathComponent("idle-ashes-lockup.svg"))
 }
 
 private func writeReadme() throws {
@@ -545,6 +721,30 @@ private func writeReadme() throws {
   - `freely-spoken-wordmark.svg` / `freely-spoken-wordmark.png`
   - `freely-spoken-lockup.svg` / `freely-spoken-lockup.png` - wide radiant brand lockup
   - Expo assets in `assets/images/`: app icon, splash icon, favicon, and adaptive icon images.
+
+  ## Idle Ashes
+
+  - Product name: Idle Ashes
+  - Mark: abstract cooling ash fragments with restrained ember point
+  - Voice: quiet, private, reflective, literate
+  - Palette: charcoal, ash gray, warm ivory, clay, copper ember
+
+  ### Colors
+
+  - Charcoal: `#2B2A25`
+  - Ash gray: `#7C756B`
+  - Ivory: `#F4EEE6`
+  - Clay: `#A66036`
+  - Copper ember: `#C1784A`
+  - Panel: `#E9DFD2`
+  - Ink: `#24231F`
+
+  ### Files
+
+  - `idle-ashes-mark.svg` / `idle-ashes-mark.png`
+  - `idle-ashes-wordmark.svg` / `idle-ashes-wordmark.png`
+  - `idle-ashes-lockup.svg` / `idle-ashes-lockup.png`
+  - Expo assets in `assets/images/idle-ashes-*`
 
   Keep generated assets in sync by editing the generator and rerunning it from the repository root.
   """

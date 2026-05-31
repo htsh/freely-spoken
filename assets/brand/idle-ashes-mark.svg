@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Idle Ashes mark</title>
+  <g fill="#2B2A25">
+    <path opacity="0.34" d="M123 22 149 44 139 76 109 82 91 56 101 31Z"/>
+    <path d="M73 82 101 100 94 132 63 142 44 117 50 91Z"/>
+    <path d="M157 84 188 98 194 132 169 154 139 143 134 111Z"/>
+    <path d="M96 151 132 142 157 166 145 199 108 207 82 184Z"/>
+    <path d="M154 170 190 159 211 184 199 219 162 229 137 204Z"/>
+  </g>
+  <circle cx="129" cy="148" r="12" fill="#C1784A"/>
+</svg>

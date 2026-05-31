@@ -20,7 +20,8 @@
       "distribution": "internal",
       "environment": "development",
       "env": {
-        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada",
+        "EXPO_PUBLIC_LOOKUP_API_URL": "https://verses.hitesh.nyc"
       },
       "ios": {
         "buildConfiguration": "Debug"
@@ -40,7 +41,8 @@
       "distribution": "internal",
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada",
+        "EXPO_PUBLIC_LOOKUP_API_URL": "https://verses.hitesh.nyc"
       },
       "ios": {
         "buildConfiguration": "Release"
@@ -60,7 +62,8 @@
       "distribution": "store",
       "environment": "production",
       "env": {
-        "EXPO_PUBLIC_APP_VARIANT": "dhammapada"
+        "EXPO_PUBLIC_APP_VARIANT": "dhammapada",
+        "EXPO_PUBLIC_LOOKUP_API_URL": "https://verses.hitesh.nyc"
       },
       "ios": {
         "buildConfiguration": "Release"

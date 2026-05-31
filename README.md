@@ -326,6 +326,10 @@ eas build --profile production-idleashes
 
 [app.config.js](app.config.js) owns variant-specific native identity: display name, bundle identifier, URL scheme, icon, and permission string product names. Do not put per-variant identity back into [app.json](app.json).
 
+For Idle Ashes TestFlight builds, use the `production-idleashes` profile. The build uses `com.htsh.idleashes`, the `idle-ashes` Expo slug, and the shared lookup backend at `https://verses.hitesh.nyc`. Idle Ashes builds against its own EAS project and App Store Connect app; brand assets are generated under `assets/images/idle-ashes-*` and `assets/brand/idle-ashes-*`.
+
+Do not commit `EXPO_PUBLIC_LOOKUP_CLIENT_SECRET`; configure it locally or in EAS environment variables.
+
 ## Testing
 
 Run app checks:
