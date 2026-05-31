@@ -2,7 +2,7 @@
 
 ## Project Shape
 
-Freely Spoken is an Expo/React Native iOS app with a FastAPI lookup backend. The repository name is still `mic-check`, but the implemented product is Freely Spoken, with `christian` and `dhammapada` variants and a stubbed `stoic` variant.
+Freely Spoken is an Expo/React Native iOS app with a FastAPI lookup backend. The repository name is still `mic-check`, but the implemented product is Freely Spoken, with `christian` and `dhammapada` variants and a stubbed `stoic` variant. The Dhammapada variant ships as Idle Ashes and is currently in TestFlight.
 
 Read `README.md` first for the privacy model, architecture, setup, and repository map. Read `docs/privacy-policy.md` before changing any data collection, logging, retention, network behavior, or wording about privacy.
 
@@ -43,7 +43,7 @@ Treat local Foundation Models output as untrusted. Keep parsing, normalization, 
 The active product is selected at build time with `EXPO_PUBLIC_APP_VARIANT`.
 
 - `christian`: Freely Spoken, implemented.
-- `dhammapada`: Idle Ashes, implemented.
+- `dhammapada`: Idle Ashes, implemented and in TestFlight.
 - `stoic`: unreleased stub.
 
 `app.config.js` owns variant-specific native identity, including display name, bundle identifiers, URL schemes, icons, and permission string product names. Do not put per-variant identity back into `app.json`.
