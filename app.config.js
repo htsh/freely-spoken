@@ -22,10 +22,9 @@ const appVariant = process.env.EXPO_PUBLIC_APP_VARIANT || process.env.APP_VARIAN
 const BASE_NAME = 'Freely Spoken';
 
 // Each variant builds against its own App Store Connect app and EAS project.
-// Project ids are not secrets. The Idle Ashes id falls back to an env var until
-// its EAS project is created (see the EAS project task in the implementation plan).
+// Project ids are not secrets.
 const FREELY_SPOKEN_EAS_PROJECT_ID = '9af03ee3-2eae-4f5c-b0fe-60200c3bd29d';
-const IDLE_ASHES_EAS_PROJECT_ID = process.env.IDLE_ASHES_EAS_PROJECT_ID;
+const IDLE_ASHES_EAS_PROJECT_ID = '7994ef0a-b5ad-4924-b93f-f99f6bef8818'; // @arlodog/idle-ashes
 
 // Freely Spoken (default) native identity / assets, reused by both christian and
 // stoic so the shipped app is unaffected.
@@ -146,7 +145,9 @@ module.exports = ({ config }) => {
     ...(config.extra || {}),
     eas: {
       ...(config.extra?.eas || {}),
-      projectId: variant.easProjectId || config.extra?.eas?.projectId,
+      // Each variant owns its EAS project id explicitly. dhammapada is undefined
+      // until its Expo project is created (do not inherit the Freely Spoken id).
+      projectId: variant.easProjectId,
     },
     lookupApiUrl,
     lookupClientSecret,
