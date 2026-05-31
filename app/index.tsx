@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand, getBrandName } from '@/constants/brand';
+import { getBrand } from '@/constants/brand';
+import { Fonts } from '@/constants/theme';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import type { SentimentResult } from '@/hooks/sentiment-utils';
 import { useTranscriber } from '@/hooks/use-transcriber';
@@ -51,9 +52,19 @@ const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
 const METER_BAR_COUNT = 5;
 const METER_BAR_MIN_HEIGHT = 6;
 const METER_BAR_HEIGHT_RANGE = 20;
-const brandColors = Brand.colors;
 
-function RecordingLevelMeter({ inputLevel }: { inputLevel: number }) {
+type HomeStyles = ReturnType<typeof buildStyles>;
+
+// React Native accepts 8-digit hex (#RRGGBBAA) on current iOS/Android. Used to
+// derive translucent surfaces from the active variant's solid brand colors.
+function withAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '');
+  if (normalized.length !== 6) return hex;
+  const value = Math.round(alpha * 255).toString(16).padStart(2, '0');
+  return `#${normalized}${value}`;
+}
+
+function RecordingLevelMeter({ inputLevel, styles }: { inputLevel: number; styles: HomeStyles }) {
   const normalizedLevel = Math.max(0, Math.min(1, inputLevel));
 
   return (
@@ -92,6 +103,8 @@ export default function HomeScreen() {
   const pulseScale = useRef(new Animated.Value(1)).current;
 
   const appVariant = useMemo<AppVariant>(() => getBuildAppVariant(), []);
+  const brand = useMemo(() => getBrand(appVariant), [appVariant]);
+  const styles = useMemo(() => buildStyles(brand.colors), [brand.colors]);
 
   const {
     duration, inputLevel, startRecording, stopRecording,
@@ -260,7 +273,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title" style={styles.title}>{getBrandName(appVariant)}</ThemedText>
+        <ThemedText type="title" style={styles.title}>{brand.wordmark}</ThemedText>
 
         {__DEV__ && (
           <Pressable
@@ -305,7 +318,7 @@ export default function HomeScreen() {
                 <View style={styles.stopSquare} />
               </Pressable>
             </View>
-            <RecordingLevelMeter inputLevel={inputLevel} />
+            <RecordingLevelMeter inputLevel={inputLevel} styles={styles} />
             <ThemedText style={styles.hint}>Recording...</ThemedText>
           </View>
         )}
@@ -317,6 +330,7 @@ export default function HomeScreen() {
               hasTranscript={Boolean(transcript)}
               isAnalyzing={isAnalyzing}
               isTranscribing={isTranscribing}
+              styles={styles}
             />
           </View>
         )}
@@ -327,6 +341,7 @@ export default function HomeScreen() {
             result={sentimentResult}
             onFindResponse={handleSubmitLookup}
             onRecordAgain={handleReset}
+            styles={styles}
           />
         )}
 
@@ -344,6 +359,7 @@ export default function HomeScreen() {
                 appVariant={appVariant}
                 showAlternates={showAlternates}
                 onToggleAlternates={() => setShowAlternates((v) => !v)}
+                styles={styles}
               />
             ) : lookupError ? (
               <ThemedView style={styles.lookupErrorBlock}>
@@ -416,11 +432,13 @@ function PrivateProcessingCue({
   hasTranscript,
   isAnalyzing,
   isTranscribing,
+  styles,
 }: {
   currentLabel: string;
   hasTranscript: boolean;
   isAnalyzing: boolean;
   isTranscribing: boolean;
+  styles: HomeStyles;
 }) {
   const steps = [
     {
@@ -479,11 +497,13 @@ function PrivateSummaryReview({
   result,
   onFindResponse,
   onRecordAgain,
+  styles,
 }: {
   appVariant: AppVariant;
   result: SentimentResult;
   onFindResponse: () => void;
   onRecordAgain: () => void;
+  styles: HomeStyles;
 }) {
   const emotionText = result.emotions.length > 0
     ? result.emotions.join(', ')
@@ -544,6 +564,7 @@ type LookupResultBlockProps = {
   appVariant: AppVariant;
   showAlternates: boolean;
   onToggleAlternates: () => void;
+  styles: HomeStyles;
 };
 
 function LookupResultBlock({
@@ -551,13 +572,14 @@ function LookupResultBlock({
   appVariant,
   showAlternates,
   onToggleAlternates,
+  styles,
 }: LookupResultBlockProps) {
   if (isStoicStub(result)) {
     return (
       <ThemedView style={styles.stoicStubBlock}>
         <ThemedText type="subtitle">Stoic mode (not yet implemented)</ThemedText>
         <ThemedText style={styles.stoicStubText}>{result.message}</ThemedText>
-        {result.crisisFlag && <CrisisBanner />}
+        {result.crisisFlag && <CrisisBanner styles={styles} />}
       </ThemedView>
     );
   }
@@ -567,7 +589,7 @@ function LookupResultBlock({
     // not an error — lead with support if the crisis flag is set.
     return (
       <ThemedView style={styles.unavailableBlock}>
-        {result.crisisFlag && <CrisisBanner />}
+        {result.crisisFlag && <CrisisBanner styles={styles} />}
         <ThemedText type="subtitle" style={styles.unavailableTitle}>
           No passage right now
         </ThemedText>
@@ -578,13 +600,13 @@ function LookupResultBlock({
 
   return (
     <View>
-      {result.crisisFlag && <CrisisBanner />}
+      {result.crisisFlag && <CrisisBanner styles={styles} />}
 
       <ThemedText type="subtitle" style={styles.primaryHeading}>
         {PRIMARY_HEADINGS[appVariant]}
       </ThemedText>
 
-      <ReferenceBlock reference={result.primary} variant="primary" />
+      <ReferenceBlock reference={result.primary} variant="primary" styles={styles} />
 
       <Pressable style={styles.altToggle} onPress={onToggleAlternates}>
         <ThemedText style={styles.altToggleText}>
@@ -595,12 +617,12 @@ function LookupResultBlock({
       {showAlternates && (
         <View style={styles.alternatesBlock}>
           {result.alternates.map((ref, i) => (
-            <ReferenceBlock key={`${ref.ref}-${i}`} reference={ref} variant="alternate" />
+            <ReferenceBlock key={`${ref.ref}-${i}`} reference={ref} variant="alternate" styles={styles} />
           ))}
         </View>
       )}
 
-      {__DEV__ && <ProviderBadge result={result} />}
+      {__DEV__ && <ProviderBadge result={result} styles={styles} />}
     </View>
   );
 }
@@ -608,9 +630,11 @@ function LookupResultBlock({
 function ReferenceBlock({
   reference,
   variant,
+  styles,
 }: {
   reference: Reference;
   variant: 'primary' | 'alternate';
+  styles: HomeStyles;
 }) {
   const isPrimary = variant === 'primary';
   return (
@@ -639,7 +663,7 @@ function ReferenceBlock({
   );
 }
 
-function ProviderBadge({ result }: { result: ReferenceLookupResult }) {
+function ProviderBadge({ result, styles }: { result: ReferenceLookupResult; styles: HomeStyles }) {
   return (
     <ThemedText style={styles.providerBadge}>
       {result.provider} · {result.model}
@@ -649,7 +673,7 @@ function ProviderBadge({ result }: { result: ReferenceLookupResult }) {
   );
 }
 
-function CrisisBanner() {
+function CrisisBanner({ styles }: { styles: HomeStyles }) {
   return (
     <ThemedView style={styles.crisisBanner}>
       <ThemedText style={styles.crisisBannerText}>
@@ -659,7 +683,8 @@ function CrisisBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+function buildStyles(colors: ReturnType<typeof getBrand>['colors']) {
+  return StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 24 },
   title: { textAlign: 'center', marginTop: 40 },
@@ -669,15 +694,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: 'rgba(177,138,85,0.16)',
+    backgroundColor: withAlpha(colors.accent, 0.16),
   },
   debugLinkText: { fontSize: 12, opacity: 0.8 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   recordButton: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: brandColors.parchment,
+    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: colors.surface,
     justifyContent: 'center', alignItems: 'center',
   },
-  recordDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: brandColors.destructive },
+  recordDot: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.destructive },
   recordingControlWrap: {
     width: 96,
     height: 96,
@@ -689,13 +714,13 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: 'rgba(185,64,52,0.14)',
+    backgroundColor: withAlpha(colors.destructive, 0.14),
   },
   stopButton: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: brandColors.destructive,
+    width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: colors.destructive,
     justifyContent: 'center', alignItems: 'center',
   },
-  stopSquare: { width: 28, height: 28, borderRadius: 4, backgroundColor: brandColors.destructive },
+  stopSquare: { width: 28, height: 28, borderRadius: 4, backgroundColor: colors.destructive },
   levelMeter: {
     marginTop: 14,
     height: 30,
@@ -706,7 +731,7 @@ const styles = StyleSheet.create({
     width: 6,
     borderRadius: 4,
     marginHorizontal: 2,
-    backgroundColor: brandColors.destructive,
+    backgroundColor: colors.destructive,
   },
   timer: { fontSize: 48, lineHeight: 56, fontVariant: ['tabular-nums'], marginBottom: 24 },
   hint: { marginTop: 16, opacity: 0.6 },
@@ -721,17 +746,17 @@ const styles = StyleSheet.create({
     borderRadius: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(177,138,85,0.12)',
+    backgroundColor: withAlpha(colors.accent, 0.12),
     borderWidth: 1,
-    borderColor: 'rgba(177,138,85,0.24)',
+    borderColor: withAlpha(colors.accent, 0.24),
   },
   processingCore: {
     width: 54,
     height: 54,
     borderRadius: 27,
     borderWidth: 5,
-    borderColor: brandColors.navy,
-    borderTopColor: brandColors.gold,
+    borderColor: colors.primary,
+    borderTopColor: colors.accent,
   },
   processingTitle: {
     marginTop: 22,
@@ -750,7 +775,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(23,34,53,0.05)',
+    backgroundColor: colors.softSurface,
   },
   processingStep: {
     flexDirection: 'row',
@@ -763,15 +788,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginRight: 10,
     borderWidth: 1,
-    borderColor: 'rgba(23,34,53,0.28)',
+    borderColor: withAlpha(colors.primary, 0.28),
   },
   processingStepDotActive: {
-    backgroundColor: brandColors.gold,
-    borderColor: brandColors.gold,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   processingStepDotDone: {
-    backgroundColor: brandColors.navy,
-    borderColor: brandColors.navy,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   processingStepText: {
     flex: 1,
@@ -799,9 +824,9 @@ const styles = StyleSheet.create({
     marginTop: 24,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(177,138,85,0.12)',
+    backgroundColor: withAlpha(colors.accent, 0.12),
     borderWidth: 1,
-    borderColor: 'rgba(177,138,85,0.24)',
+    borderColor: withAlpha(colors.accent, 0.24),
   },
   reviewPayloadLabel: {
     fontSize: 13,
@@ -817,7 +842,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(23,34,53,0.05)',
+    backgroundColor: colors.softSurface,
   },
   reviewMetadataTitle: {
     marginBottom: 8,
@@ -847,10 +872,10 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: brandColors.navy,
+    backgroundColor: colors.primary,
   },
   findVerseText: {
-    color: brandColors.ivory,
+    color: colors.inverseText,
     fontWeight: '700',
   },
   reviewSecondaryButton: {
@@ -859,41 +884,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   reviewSecondaryText: {
-    color: brandColors.navy,
+    color: colors.primary,
     fontWeight: '600',
   },
   sectionHeading: { marginTop: 24 },
   transcript: { marginTop: 8, marginBottom: 24, lineHeight: 22 },
   jsonBlock: {
-    marginTop: 8, padding: 12, borderRadius: 8, backgroundColor: 'rgba(23,34,53,0.06)',
+    marginTop: 8, padding: 12, borderRadius: 8, backgroundColor: withAlpha(colors.primary, 0.06),
   },
   jsonText: { fontFamily: 'ui-monospace', fontSize: 13, lineHeight: 18 },
   anonymousLabel: { marginTop: 24 },
   anonymousText: { marginTop: 8, lineHeight: 22 },
-  errorText: { color: brandColors.destructive, marginTop: 8, marginBottom: 16 },
+  errorText: { color: colors.destructive, marginTop: 8, marginBottom: 16 },
   resetButton: {
     marginTop: 32, paddingVertical: 16, alignItems: 'center', borderRadius: 12,
-    backgroundColor: brandColors.navy,
+    backgroundColor: colors.primary,
   },
-  resetText: { color: brandColors.ivory, fontWeight: '600' },
+  resetText: { color: colors.inverseText, fontWeight: '600' },
 
   primaryHeading: { marginTop: 8 },
   primaryRefBlock: {
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(177,138,85,0.12)',
+    backgroundColor: withAlpha(colors.accent, 0.12),
   },
   alternateRefBlock: {
     marginTop: 12,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(23,34,53,0.05)',
+    backgroundColor: colors.softSurface,
   },
   refLabel: { fontSize: 18, fontWeight: '600', marginBottom: 8 },
   altRefLabel: { fontSize: 15, fontWeight: '600', marginBottom: 6 },
-  verseText: { fontSize: 17, lineHeight: 26 },
-  altVerseText: { fontSize: 15, lineHeight: 22 },
+  verseText: { fontFamily: Fonts?.serif, fontSize: 18, lineHeight: 28 },
+  altVerseText: { fontFamily: Fonts?.serif, fontSize: 16, lineHeight: 24 },
   translationLabel: { marginTop: 6, fontSize: 12, opacity: 0.7 },
   textErrorLabel: { marginTop: 4, opacity: 0.6, fontStyle: 'italic' },
   shortReason: { marginTop: 12, fontSize: 14, lineHeight: 20, opacity: 0.85 },
@@ -903,7 +928,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: 'rgba(23,34,53,0.06)',
+    backgroundColor: withAlpha(colors.primary, 0.06),
   },
   altToggleText: { fontSize: 13 },
   alternatesBlock: { marginTop: 4 },
@@ -912,23 +937,23 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 14,
     borderRadius: 10,
-    backgroundColor: 'rgba(185,64,52,0.12)',
+    backgroundColor: withAlpha(colors.destructive, 0.12),
     borderWidth: 1,
-    borderColor: 'rgba(185,64,52,0.4)',
+    borderColor: withAlpha(colors.destructive, 0.4),
   },
   crisisBannerText: { lineHeight: 20 },
   stoicStubBlock: {
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(23,34,53,0.05)',
+    backgroundColor: colors.softSurface,
   },
   stoicStubText: { marginTop: 8, lineHeight: 22 },
   unavailableBlock: {
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: 'rgba(23,34,53,0.05)',
+    backgroundColor: colors.softSurface,
   },
   unavailableTitle: { marginTop: 4 },
   unavailableText: { marginTop: 8, lineHeight: 22, opacity: 0.85 },
@@ -938,7 +963,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    backgroundColor: brandColors.navy,
+    backgroundColor: colors.primary,
   },
-  retryText: { color: brandColors.ivory, fontWeight: '600' },
-});
+  retryText: { color: colors.inverseText, fontWeight: '600' },
+  });
+}
