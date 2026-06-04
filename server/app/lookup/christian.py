@@ -46,6 +46,28 @@ Rules:
 """
 
 
+# Appended to the system prompt only when the HTTP layer flags possible crisis
+# language (see app.crisis.check). The Dhammapada adapter can shrink a candidate
+# catalog the model never sees; the Christian adapter lets the model pick from
+# all of scripture, so the prompt is the only lever for steering away from
+# passages that could harm someone in acute distress. This is a tone/selection
+# constraint — it discloses no user content to the model.
+CHRISTIAN_CRISIS_GUARDRAIL = """
+This person may be in acute emotional distress or a vulnerable moment. Choose with extra care:
+- Strongly prefer verses about God's nearness, comfort, refuge, steadfast love, gentleness, rest, and reassurance (for example "do not be afraid", being carried or held, enduring hope).
+- Do NOT select verses about judgment, divine wrath, punishment, condemnation, hell, vengeance, demands to repent, rebuke, correction, or suffering as discipline — even if they seem topically related.
+- Never choose a verse that could read as blaming the person or as making God's care conditional on their behavior.
+- Keep every shortReason especially gentle and supportive, with no admonition.
+"""
+
+
+def _system_prompt(crisis_flag: bool) -> str:
+    """Base selector prompt, plus a safety guardrail when a crisis is flagged."""
+    if crisis_flag:
+        return CHRISTIAN_SYSTEM_PROMPT + CHRISTIAN_CRISIS_GUARDRAIL
+    return CHRISTIAN_SYSTEM_PROMPT
+
+
 class ChristianAdapterError(Exception):
     """Raised when LLM output is malformed enough to be unusable."""
 
@@ -148,7 +170,7 @@ class ChristianAdapter:
     app_variant = "christian"
 
     async def select(self, req: LookupRequest) -> LookupResult:
-        llm = await run_llm(CHRISTIAN_SYSTEM_PROMPT, _user_prompt(req))
+        llm = await run_llm(_system_prompt(req.crisis_flag), _user_prompt(req))
 
         stripped = _extract_json(llm.text)
         if not stripped:

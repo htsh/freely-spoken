@@ -32,6 +32,9 @@ class LookupRequest:
     confidence: float
     provider: str = "gemini"
     fallback: bool = True
+    # Crisis flag from the pipeline. The Christian adapter appends a tone/
+    # selection guardrail to its system prompt when set, mirroring the server.
+    crisis_flag: bool = False
 
 
 class LookupAdapter(Protocol):

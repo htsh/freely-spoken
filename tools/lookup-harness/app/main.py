@@ -79,6 +79,7 @@ async def run(
                 confidence=result.confidence,
                 provider=provider,
                 fallback=fallback,
+                crisis_flag=result.crisisFlag,
             )
             try:
                 lookup_result = await adapter.select(lookup_req)

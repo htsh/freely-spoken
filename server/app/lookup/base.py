@@ -30,9 +30,10 @@ class LookupRequest:
     emotions: List[str] = field(default_factory=list)
     confidence: float = 0.0
     # Informational crisis flag computed by the HTTP layer (app.crisis.check).
-    # Most adapters ignore it (Christian/Stoic). The Dhammapada adapter uses it
-    # to hard-exclude high-risk passages from the LLM-visible index before the
-    # prompt is built.
+    # Stoic ignores it. The Dhammapada adapter uses it to hard-exclude high-risk
+    # passages from the LLM-visible index before the prompt is built; the
+    # Christian adapter uses it to append a tone/selection guardrail to the
+    # system prompt (it has no candidate set to shrink).
     crisis_flag: bool = False
 
 

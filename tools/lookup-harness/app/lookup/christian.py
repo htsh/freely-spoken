@@ -98,6 +98,26 @@ Rules:
 """
 
 
+# Kept in sync with server/app/lookup/christian.py. Appended only when the
+# pipeline flags possible crisis language: the model picks from all of scripture,
+# so the prompt is the only lever for steering away from passages that could harm
+# someone in acute distress.
+CHRISTIAN_CRISIS_GUARDRAIL = """
+This person may be in acute emotional distress or a vulnerable moment. Choose with extra care:
+- Strongly prefer verses about God's nearness, comfort, refuge, steadfast love, gentleness, rest, and reassurance (for example "do not be afraid", being carried or held, enduring hope).
+- Do NOT select verses about judgment, divine wrath, punishment, condemnation, hell, vengeance, demands to repent, rebuke, correction, or suffering as discipline — even if they seem topically related.
+- Never choose a verse that could read as blaming the person or as making God's care conditional on their behavior.
+- Keep every shortReason especially gentle and supportive, with no admonition.
+"""
+
+
+def _system_prompt(crisis_flag: bool) -> str:
+    """Base selector prompt, plus a safety guardrail when a crisis is flagged."""
+    if crisis_flag:
+        return CHRISTIAN_SYSTEM_PROMPT + CHRISTIAN_CRISIS_GUARDRAIL
+    return CHRISTIAN_SYSTEM_PROMPT
+
+
 class ChristianAdapter:
     app_variant = "christian"
 
@@ -121,7 +141,7 @@ class ChristianAdapter:
             print(f"[christian] Trying provider: {label} ({model})")
             try:
                 raw_text, retry_count = await generate_func(
-                    CHRISTIAN_SYSTEM_PROMPT, user_prompt
+                    _system_prompt(req.crisis_flag), user_prompt
                 )
                 print(
                     f"[christian] {label} raw response "
