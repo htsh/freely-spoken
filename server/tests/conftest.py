@@ -34,18 +34,26 @@ def make_response(primary_id: str, alt_ids: list[str]) -> dict:
 
 
 def stub_llm_returning(payload: dict, *, record: dict | None = None):
-    """Async stub that returns `payload` as JSON, optionally recording prompts."""
+    """Async stub that returns `payload` as JSON, optionally recording prompts.
 
-    async def fake(system_prompt: str, user_prompt: str) -> LLMResult:
+    Mirrors the real runner's contract: when the adapter passes a `validate`
+    callback, the stub runs it so malformed-output tests still exercise the
+    adapter's validation (and a raise propagates, as it would from a single
+    provider whose output is rejected)."""
+
+    async def fake(system_prompt: str, user_prompt: str, *, validate=None) -> LLMResult:
         if record is not None:
             record["system"] = system_prompt
             record["user"] = user_prompt
+        text = json.dumps(payload)
+        parsed = validate(text) if validate is not None else None
         return LLMResult(
-            text=json.dumps(payload),
+            text=text,
             provider="gemini",
             model="flash",
             retry_count=0,
             fallback_used=False,
+            parsed=parsed,
         )
 
     return fake
@@ -56,7 +64,7 @@ def stub_llm_picks_first(*, record: dict | None = None):
     shown. Mirrors a well-behaved model: it can only choose what the adapter put
     in front of it, so it is the right tool for crisis-exclusion property tests."""
 
-    async def fake(system_prompt: str, user_prompt: str) -> LLMResult:
+    async def fake(system_prompt: str, user_prompt: str, *, validate=None) -> LLMResult:
         if record is not None:
             record["system"] = system_prompt
             record["user"] = user_prompt
@@ -67,12 +75,15 @@ def stub_llm_picks_first(*, record: dict | None = None):
             if len(ids) == 3:
                 break
         payload = make_response(ids[0], ids[1:3])
+        text = json.dumps(payload)
+        parsed = validate(text) if validate is not None else None
         return LLMResult(
-            text=json.dumps(payload),
+            text=text,
             provider="gemini",
             model="flash",
             retry_count=0,
             fallback_used=False,
+            parsed=parsed,
         )
 
     return fake

@@ -3,7 +3,7 @@ import os
 import httpx
 
 TOGETHER_URL = "https://api.together.xyz/v1/chat/completions"
-TOGETHER_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
+TOGETHER_MODEL = "openai/gpt-oss-20b"
 
 NAME = "together"
 MODEL = TOGETHER_MODEL

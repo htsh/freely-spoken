@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import random
 import statistics
 import sys
@@ -337,11 +338,12 @@ def report(summary: Summary) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default="https://verses.hitesh.nyc", help="Base URL of the backend (default: https://verses.hitesh.nyc)")
-    parser.add_argument("--secret", default="", help="X-Lookup-Client-Secret header value")
+    parser.add_argument("--secret", default="", help="X-Lookup-Client-Secret header value (falls back to $LOOKUP_CLIENT_SECRET)")
     parser.add_argument("--requests", type=int, default=50, help="Total number of requests to send (default: 50)")
     parser.add_argument("--concurrency", type=int, default=4, help="Number of concurrent workers (default: 4)")
     parser.add_argument("--delay", type=float, default=0.0, help="Delay in seconds between each request (default: 0)")
     args = parser.parse_args(argv)
+    secret = args.secret or os.environ.get("LOOKUP_CLIENT_SECRET", "")
 
     if args.requests < 1:
         parser.error("--requests must be >= 1")
@@ -360,14 +362,14 @@ def main(argv: list[str] | None = None) -> int:
             limits = httpx.Limits(max_connections=1, max_keepalive_connections=1)
             async with httpx.AsyncClient(limits=limits) as client:
                 for i in range(args.requests):
-                    await _request(client, f"{args.host.rstrip('/')}/lookup", args.secret or None, summary)
+                    await _request(client, f"{args.host.rstrip('/')}/lookup", secret or None, summary)
                     print(f"  ... {i + 1}/{args.requests} completed", flush=True)
                     if i < args.requests - 1:
                         await asyncio.sleep(args.delay)
             return summary
         summary = asyncio.run(sequential())
     else:
-        summary = asyncio.run(run(args.host, args.secret or None, args.requests, args.concurrency))
+        summary = asyncio.run(run(args.host, secret or None, args.requests, args.concurrency))
 
     report(summary)
     return 0 if summary.ok_200 == summary.total else 1

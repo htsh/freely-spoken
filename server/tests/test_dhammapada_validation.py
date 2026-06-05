@@ -77,10 +77,12 @@ async def test_wrong_alternate_count_rejected(monkeypatch):
 
 
 async def test_unparseable_output_rejected(monkeypatch):
-    async def junk(s, u):
+    async def junk(s, u, *, validate=None):
         from app.llm_runner import LLMResult
-        return LLMResult(text="I cannot help with that.", provider="g", model="m",
-                         retry_count=0, fallback_used=False)
+        text = "I cannot help with that."
+        parsed = validate(text) if validate is not None else None
+        return LLMResult(text=text, provider="g", model="m",
+                         retry_count=0, fallback_used=False, parsed=parsed)
     monkeypatch.setattr(d, "run_llm", junk)
     with pytest.raises(d.DhammapadaAdapterError):
         await d.DhammapadaAdapter().select(REQ)

@@ -19,7 +19,7 @@ import os
 import re
 
 from app.lookup.base import LookupRequest, LookupResult, Reference
-from app.llm_runner import AllProvidersFailedError, run as run_llm
+from app.llm_runner import AllProvidersFailedError, OutputValidationError, run as run_llm
 
 _CATALOG_PATH = os.path.join(os.path.dirname(__file__), "dhammapada_catalog.json")
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
@@ -100,8 +100,12 @@ _USEWHEN_VOCAB = {
 }
 
 
-class DhammapadaAdapterError(Exception):
-    """Raised when LLM output is malformed enough to be unusable."""
+class DhammapadaAdapterError(OutputValidationError):
+    """Raised when LLM output is malformed enough to be unusable.
+
+    Subclasses OutputValidationError so the runner treats it as a provider
+    failure and falls through to the next provider instead of failing outright.
+    """
 
 
 class LookupUnavailableError(Exception):
@@ -299,41 +303,47 @@ class DhammapadaAdapter:
         shortlist = _shortlist(eligible, req)
         allowed_ids = {r["id"] for r in shortlist}
 
-        llm = await run_llm(DHAMMAPADA_SYSTEM_PROMPT, _user_prompt(req, shortlist))
+        def _parse(text: str) -> dict:
+            """Validate one provider's output; raise to fall through to the next."""
+            stripped = _extract_json(text)
+            if not stripped:
+                raise DhammapadaAdapterError(
+                    f"LLM returned empty/unparseable response. Raw: {text[:200]!r}"
+                )
+            try:
+                data = json.loads(stripped)
+            except json.JSONDecodeError as e:
+                raise DhammapadaAdapterError(
+                    f"Invalid JSON: {e}\nStripped: {stripped[:500]!r}"
+                ) from e
 
-        stripped = _extract_json(llm.text)
-        if not stripped:
-            raise DhammapadaAdapterError(
-                f"LLM returned empty/unparseable response. Raw: {llm.text[:200]!r}"
-            )
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError as e:
-            raise DhammapadaAdapterError(
-                f"Invalid JSON from {llm.provider}: {e}\nStripped: {stripped[:500]!r}"
-            ) from e
+            if "primary" not in data or "alternates" not in data:
+                raise DhammapadaAdapterError(f"Missing primary or alternates: {data}")
+            alternates_data = data["alternates"]
+            if not isinstance(alternates_data, list) or len(alternates_data) != 2:
+                raise DhammapadaAdapterError(
+                    f"Expected exactly 2 alternates, got: {alternates_data}"
+                )
 
-        if "primary" not in data or "alternates" not in data:
-            raise DhammapadaAdapterError(f"Missing primary or alternates: {data}")
-        alternates_data = data["alternates"]
-        if not isinstance(alternates_data, list) or len(alternates_data) != 2:
-            raise DhammapadaAdapterError(
-                f"Expected exactly 2 alternates, got: {alternates_data}"
-            )
+            primary_id = _validate_entry(data["primary"], "primary", allowed_ids)
+            alt_ids = [
+                _validate_entry(a, f"alternate[{i}]", allowed_ids)
+                for i, a in enumerate(alternates_data)
+            ]
+            if len({primary_id, *alt_ids}) != 3:
+                raise DhammapadaAdapterError(
+                    f"Duplicate ids across primary/alternates: {[primary_id, *alt_ids]}"
+                )
+            return data
 
-        primary_id = _validate_entry(data["primary"], "primary", allowed_ids)
-        alt_ids = [
-            _validate_entry(a, f"alternate[{i}]", allowed_ids)
-            for i, a in enumerate(alternates_data)
-        ]
-        if len({primary_id, *alt_ids}) != 3:
-            raise DhammapadaAdapterError(
-                f"Duplicate ids across primary/alternates: {[primary_id, *alt_ids]}"
-            )
+        llm = await run_llm(
+            DHAMMAPADA_SYSTEM_PROMPT, _user_prompt(req, shortlist), validate=_parse
+        )
+        data = llm.parsed
 
         return LookupResult(
             primary=_to_reference(data["primary"]),
-            alternates=[_to_reference(a) for a in alternates_data],
+            alternates=[_to_reference(a) for a in data["alternates"]],
             provider=llm.provider,
             model=llm.model,
             retry_count=llm.retry_count,

@@ -3,7 +3,7 @@ import os
 import httpx
 
 CEREBRAS_URL = "https://api.cerebras.ai/v1/chat/completions"
-CEREBRAS_MODEL = "llama3.1-8b"
+CEREBRAS_MODEL = "gpt-oss-120b"
 
 NAME = "cerebras"
 MODEL = CEREBRAS_MODEL

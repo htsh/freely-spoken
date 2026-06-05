@@ -38,7 +38,7 @@ If you are evaluating this repo as a portfolio project, these are the parts I wo
 - **Privacy-by-construction mobile architecture**: the outbound request is assembled field-by-field from an allowlist instead of forwarding a broader object.
 - **Native iOS integration from Expo/React Native**: audio recording, Apple Speech transcription, and Apple Foundation Models require a native iOS build and real Apple Intelligence-capable hardware.
 - **On-device model hardening**: the sentiment analyzer handles loose labels, percentage strings, comma-joined emotions, malformed JSON, code fences, and unsafe anonymized output.
-- **Backend reliability under free-tier constraints**: Gemini is primary, with OpenRouter/Groq fallback and bounded retries for transient provider failures.
+- **Backend reliability under free-tier constraints**: a configurable provider chain (Cerebras/Groq/Cloudflare/OpenRouter and others) with bounded retries for transient failures and fall-through on malformed output.
 - **Canonical-source discipline**: the LLM chooses references or catalog IDs; it does not produce scripture or Dhammapada text.
 - **Variant-aware product architecture**: one codebase can ship multiple iOS apps by build-time variant selection.
 - **Safety-aware catalog design**: the Dhammapada adapter excludes high-risk passages before the LLM sees the shortlist when a crisis flag is present.
@@ -153,10 +153,11 @@ The backend logs operational metadata such as request ID, variant, sentiment lab
 
 ### Provider fallback
 
-[server/app/llm_runner.py](server/app/llm_runner.py) runs a configurable provider chain:
+[server/app/llm_runner.py](server/app/llm_runner.py) runs a configurable provider
+chain (set with `LOOKUP_PROVIDER_ORDER`), e.g.:
 
 ```text
-Gemini Flash -> OpenRouter -> Groq
+Cerebras -> Groq -> Cloudflare -> OpenRouter
 ```
 
 Behavior:
@@ -164,9 +165,17 @@ Behavior:
 - `429` rate limits immediately fall through to the next provider
 - transient `5xx`, timeout, and connect errors retry with bounded jittered backoff
 - non-retryable provider errors move to the next provider
+- **malformed output** (output that passes HTTP but fails an adapter's
+  validation — bad JSON, an out-of-shortlist ID) is treated like a provider
+  failure and falls through to the next provider rather than failing the request
 - all-provider exhaustion returns a structured backend error
 
-Additional provider adapters exist for Cloudflare, Together, and Cerebras.
+Provider adapters exist for Gemini, OpenRouter, Groq, Cloudflare, Together,
+Cerebras, and Cohere. Free-tier limits vary widely (e.g. Gemini Flash's free quota is only a
+handful of requests per day, while Groq and Cerebras are far more generous), so
+order the chain by what your keys can actually sustain. A useful catalog of
+free LLM API tiers and limits:
+[cheahjs/free-llm-api-resources](https://github.com/cheahjs/free-llm-api-resources).
 
 ### Dhammapada catalog adapter
 

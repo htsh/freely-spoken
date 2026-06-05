@@ -13,7 +13,7 @@ import re
 
 from app.lookup.base import LookupRequest, LookupResult, Reference
 from app.lookup.bible_api import BibleApiError, fetch_verse
-from app.llm_runner import AllProvidersFailedError, run as run_llm
+from app.llm_runner import AllProvidersFailedError, OutputValidationError, run as run_llm
 
 REF_PATTERN = re.compile(r"^[1-3]?\s?[A-Za-z]+\s\d+:\d+(-\d+)?$")
 _JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
@@ -68,8 +68,12 @@ def _system_prompt(crisis_flag: bool) -> str:
     return CHRISTIAN_SYSTEM_PROMPT
 
 
-class ChristianAdapterError(Exception):
-    """Raised when LLM output is malformed enough to be unusable."""
+class ChristianAdapterError(OutputValidationError):
+    """Raised when LLM output is malformed enough to be unusable.
+
+    Subclasses OutputValidationError so the runner treats it as a provider
+    failure and falls through to the next provider instead of failing outright.
+    """
 
 
 def _extract_json(text: str) -> str:
@@ -170,37 +174,43 @@ class ChristianAdapter:
     app_variant = "christian"
 
     async def select(self, req: LookupRequest) -> LookupResult:
-        llm = await run_llm(_system_prompt(req.crisis_flag), _user_prompt(req))
+        def _parse(text: str) -> tuple[Reference, list[Reference]]:
+            """Validate one provider's output; raise to fall through to the next."""
+            stripped = _extract_json(text)
+            if not stripped:
+                raise ChristianAdapterError(
+                    f"LLM returned empty/unparseable response. Raw: {text[:200]!r}"
+                )
 
-        stripped = _extract_json(llm.text)
-        if not stripped:
-            raise ChristianAdapterError(
-                f"LLM returned empty/unparseable response. Raw: {llm.text[:200]!r}"
-            )
+            try:
+                data = json.loads(stripped)
+            except json.JSONDecodeError as e:
+                raise ChristianAdapterError(
+                    f"Invalid JSON: {e}\nStripped: {stripped[:500]!r}"
+                ) from e
 
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError as e:
-            raise ChristianAdapterError(
-                f"Invalid JSON from {llm.provider}: {e}\nStripped: {stripped[:500]!r}"
-            ) from e
+            if "primary" not in data or "alternates" not in data:
+                raise ChristianAdapterError(
+                    f"Missing primary or alternates in response: {data}"
+                )
 
-        if "primary" not in data or "alternates" not in data:
-            raise ChristianAdapterError(
-                f"Missing primary or alternates in response: {data}"
-            )
+            alternates_data = data["alternates"]
+            if not isinstance(alternates_data, list) or len(alternates_data) != 2:
+                raise ChristianAdapterError(
+                    f"Expected exactly 2 alternates, got: {alternates_data}"
+                )
 
-        alternates_data = data["alternates"]
-        if not isinstance(alternates_data, list) or len(alternates_data) != 2:
-            raise ChristianAdapterError(
-                f"Expected exactly 2 alternates, got: {alternates_data}"
-            )
+            primary = _make_reference(data["primary"], "primary")
+            alternates = [
+                _make_reference(a, f"alternate[{i}]")
+                for i, a in enumerate(alternates_data)
+            ]
+            return primary, alternates
 
-        primary = _make_reference(data["primary"], "primary")
-        alternates = [
-            _make_reference(a, f"alternate[{i}]")
-            for i, a in enumerate(alternates_data)
-        ]
+        llm = await run_llm(
+            _system_prompt(req.crisis_flag), _user_prompt(req), validate=_parse
+        )
+        primary, alternates = llm.parsed
 
         await _enrich_with_text([primary, *alternates])
 

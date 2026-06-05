@@ -20,12 +20,12 @@ import asyncio
 import logging
 import random
 from dataclasses import dataclass
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 import httpx
 
 from app.config import SETTINGS
-from app.providers import cerebras, cloudflare, gemini, groq, openrouter, together
+from app.providers import cerebras, cloudflare, cohere, gemini, groq, openrouter, together
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,10 @@ PROVIDERS: dict[str, tuple[str, Callable[[str, str], Awaitable[str]]]] = {
     cloudflare.NAME: (cloudflare.MODEL, cloudflare.generate),
     together.NAME: (together.MODEL, together.generate),
     cerebras.NAME: (cerebras.MODEL, cerebras.generate),
+    cohere.NAME: (cohere.MODEL, cohere.generate),
 }
 
-_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, gemini.GeminiError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
+_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, cohere.CohereError, gemini.GeminiError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
 
 
 @dataclass
@@ -50,6 +51,7 @@ class LLMResult:
     model: str
     retry_count: int
     fallback_used: bool
+    parsed: Any = None  # value returned by an optional validate() callback
 
 
 class AllProvidersFailedError(Exception):
@@ -58,6 +60,18 @@ class AllProvidersFailedError(Exception):
             f"All providers exhausted. Last error: {last_error!r}"
         )
         self.last_error = last_error
+
+
+class OutputValidationError(Exception):
+    """Raised by a validate() callback when a provider's output is structurally
+    unusable (e.g. malformed JSON, an out-of-set id).
+
+    The runner treats this like a provider failure: it does NOT retry the same
+    model (re-prompting rarely fixes structural errors and only adds latency) and
+    falls through to the next provider. If every provider's output fails
+    validation, AllProvidersFailedError is raised with the last one attached.
+    Adapters subclass this so their existing error types trigger fallthrough.
+    """
 
 
 def _status_code(error: Exception) -> int | None:
@@ -79,7 +93,20 @@ def _is_transient(error: Exception) -> bool:
     return isinstance(cause, (httpx.TimeoutException, httpx.ConnectError))
 
 
-async def run(system_prompt: str, user_prompt: str) -> LLMResult:
+async def run(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    validate: Callable[[str], Any] | None = None,
+) -> LLMResult:
+    """Run the prompt through the provider chain.
+
+    If `validate` is given it is called with each provider's raw text. Returning
+    a value accepts that provider (the value is exposed as LLMResult.parsed);
+    raising OutputValidationError rejects the output and falls through to the
+    next provider, so one provider's malformed response no longer fails the whole
+    request when another provider can produce something usable.
+    """
     order = SETTINGS.provider_order
     max_retries = SETTINGS.max_retries
     primary = order[0] if order else None
@@ -96,13 +123,6 @@ async def run(system_prompt: str, user_prompt: str) -> LLMResult:
         for attempt in range(max_retries):
             try:
                 text = await generate(system_prompt, user_prompt)
-                return LLMResult(
-                    text=text,
-                    provider=name,
-                    model=model,
-                    retry_count=attempt,
-                    fallback_used=(name != primary),
-                )
             except _ERRORS as e:
                 last_error = e
                 if _is_rate_limit(e):
@@ -116,5 +136,27 @@ async def run(system_prompt: str, user_prompt: str) -> LLMResult:
                     break
                 delay = _BASE_DELAY * (2**attempt) + random.uniform(0, 1)
                 await asyncio.sleep(delay)
+                continue
+
+            # Provider returned text. If a validator is supplied, the output must
+            # also be usable; unusable output falls through to the next provider
+            # rather than failing the request outright.
+            if validate is not None:
+                try:
+                    parsed = validate(text)
+                except OutputValidationError as e:
+                    last_error = e
+                    break
+            else:
+                parsed = None
+
+            return LLMResult(
+                text=text,
+                provider=name,
+                model=model,
+                retry_count=attempt,
+                fallback_used=(name != primary),
+                parsed=parsed,
+            )
 
     raise AllProvidersFailedError(last_error)
