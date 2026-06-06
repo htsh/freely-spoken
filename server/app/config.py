@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 def _parse_provider_order(raw: str) -> list[str]:
     items = [p.strip() for p in raw.split(",") if p.strip()]
-    return items or ["groq", "cerebras", "cloudflare", "openrouter", "cohere", "together"]
+    return items or ["groq", "cerebras", "mistral", "cloudflare", "openrouter", "cohere", "together"]
 
 
 @dataclass(frozen=True)
