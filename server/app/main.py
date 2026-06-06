@@ -306,9 +306,11 @@ async def lookup(
         crisisFlag=crisis_flag,
         providersAttempted=result.providers_attempted or [],
     )
+    response_data = payload.model_dump()
+    response_data["providersAttempted"] = result.providers_attempted or []
     return JSONResponse(
         status_code=200,
-        content=payload.model_dump(),
+        content=response_data,
         headers={"X-Lookup-Request-ID": request_id},
     )
 
