@@ -24,7 +24,7 @@ def two_providers(monkeypatch):
     calls: list[str] = []
 
     def _provider(name: str, text: str):
-        async def generate(system_prompt: str, user_prompt: str) -> str:
+        async def generate(system_prompt: str, user_prompt: str, *, timeout: float = 60) -> str:
             calls.append(name)
             return text
         return generate
@@ -40,7 +40,13 @@ def two_providers(monkeypatch):
         # SETTINGS is a frozen dataclass; swap the whole object the runner reads.
         monkeypatch.setattr(
             r, "SETTINGS",
-            SimpleNamespace(provider_order=["first", "second"], max_retries=3),
+            SimpleNamespace(
+                provider_order=["first", "second"],
+                fast_tier=[],
+                provider_timeouts={},
+                default_timeout=60,
+                max_retries=3,
+            ),
         )
 
     return configure, calls

@@ -13,12 +13,12 @@ class GroqError(Exception):
     pass
 
 
-async def generate(system_prompt: str, user_prompt: str) -> str:
+async def generate(system_prompt: str, user_prompt: str, *, timeout: float = 60) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise GroqError("GROQ_API_KEY not set")
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 GROQ_URL,

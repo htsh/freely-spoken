@@ -13,13 +13,13 @@ class CerebrasError(Exception):
     pass
 
 
-async def generate(system_prompt: str, user_prompt: str) -> str:
+async def generate(system_prompt: str, user_prompt: str, *, timeout: float = 60) -> str:
     """One-shot Cerebras call. Retries and fallback are handled by llm_runner."""
     api_key = os.getenv("CEREBRAS_API_KEY")
     if not api_key:
         raise CerebrasError("CEREBRAS_API_KEY not set")
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 CEREBRAS_URL,

@@ -12,7 +12,7 @@ class CloudflareError(Exception):
     pass
 
 
-async def generate(system_prompt: str, user_prompt: str) -> str:
+async def generate(system_prompt: str, user_prompt: str, *, timeout: float = 60) -> str:
     """One-shot Cloudflare Workers AI call. Retries and fallback are handled by llm_runner."""
     account_id = os.getenv("CLOUDFLARE_ACCOUNT_ID")
     api_token = os.getenv("CLOUDFLARE_API_TOKEN")
@@ -26,7 +26,7 @@ async def generate(system_prompt: str, user_prompt: str) -> str:
         f"/ai/run/{CLOUDFLARE_MODEL}"
     )
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 url,

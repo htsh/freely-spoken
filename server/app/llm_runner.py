@@ -25,7 +25,7 @@ from typing import Any, Awaitable, Callable
 import httpx
 
 from app.config import SETTINGS
-from app.providers import cerebras, cloudflare, cohere, gemini, groq, mistral, openrouter, together
+from app.providers import cerebras, cloudflare, cohere, gemini, groq, mistral, nvidia, openrouter, together
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,10 @@ PROVIDERS: dict[str, tuple[str, Callable[[str, str], Awaitable[str]]]] = {
     cerebras.NAME: (cerebras.MODEL, cerebras.generate),
     cohere.NAME: (cohere.MODEL, cohere.generate),
     mistral.NAME: (mistral.MODEL, mistral.generate),
+    nvidia.NAME: (nvidia.MODEL, nvidia.generate),
 }
 
-_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, cohere.CohereError, gemini.GeminiError, mistral.MistralError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
+_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, cohere.CohereError, gemini.GeminiError, mistral.MistralError, nvidia.NvidiaError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
 
 
 @dataclass
@@ -102,6 +103,24 @@ def _is_transient(error: Exception) -> bool:
     return isinstance(cause, (httpx.TimeoutException, httpx.ConnectError))
 
 
+def _effective_order(order: list[str], fast_tier: list[str]) -> list[str]:
+    """Build this request's provider order.
+
+    Members of `fast_tier` (in any position in `order`) are shuffled to the
+    front; everything else keeps its original relative order as a fixed
+    last-resort tail. With an empty `fast_tier` the static order is returned
+    unchanged. Shuffling per request spreads concurrent load across the fast
+    providers so they rate-limit less and the chain reaches the slow tail less
+    often.
+    """
+    if not fast_tier:
+        return list(order)
+    fast = [p for p in order if p in fast_tier]
+    rest = [p for p in order if p not in fast_tier]
+    random.shuffle(fast)
+    return fast + rest
+
+
 def _error_reason(error: Exception) -> str:
     code = _status_code(error)
     if code == 429:
@@ -132,7 +151,7 @@ async def run(
     next provider, so one provider's malformed response no longer fails the whole
     request when another provider can produce something usable.
     """
-    order = SETTINGS.provider_order
+    order = _effective_order(SETTINGS.provider_order, SETTINGS.fast_tier)
     max_retries = SETTINGS.max_retries
     primary = order[0] if order else None
     last_error: Exception | None = None
@@ -146,12 +165,13 @@ async def run(
 
         providers_attempted.append(name)
         model, generate = PROVIDERS[name]
+        timeout = SETTINGS.provider_timeouts.get(name, SETTINGS.default_timeout)
         this_error: Exception | None = None
 
         # Try this provider with bounded retries for transient errors.
         for attempt in range(max_retries):
             try:
-                text = await generate(system_prompt, user_prompt)
+                text = await generate(system_prompt, user_prompt, timeout=timeout)
             except _ERRORS as e:
                 last_error = e
                 this_error = e

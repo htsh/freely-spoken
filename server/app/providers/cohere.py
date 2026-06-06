@@ -13,13 +13,13 @@ class CohereError(Exception):
     pass
 
 
-async def generate(system_prompt: str, user_prompt: str) -> str:
+async def generate(system_prompt: str, user_prompt: str, *, timeout: float = 60) -> str:
     """One-shot Cohere v2 chat call. Retries and fallback are handled by llm_runner."""
     api_key = os.getenv("COHERE_API_KEY")
     if not api_key:
         raise CohereError("COHERE_API_KEY not set")
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         try:
             response = await client.post(
                 COHERE_URL,
