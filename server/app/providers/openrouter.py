@@ -18,7 +18,7 @@ async def generate(system_prompt: str, user_prompt: str) -> str:
     if not api_key:
         raise OpenRouterError("OPENROUTER_API_KEY not set")
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         try:
             response = await client.post(
                 OPENROUTER_URL,

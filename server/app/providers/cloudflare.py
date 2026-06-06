@@ -26,7 +26,7 @@ async def generate(system_prompt: str, user_prompt: str) -> str:
         f"/ai/run/{CLOUDFLARE_MODEL}"
     )
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         try:
             response = await client.post(
                 url,
