@@ -132,6 +132,7 @@ class Result:
     request_num: int = 0
     payload_emotion: str = ""  # emotion from the payload for debugging
     providers_attempted: list[str] = field(default_factory=list)  # which providers were tried
+    provider_errors: dict[str, str] = field(default_factory=dict)  # provider -> failure reason
     verbose: bool = False  # whether to print per-request details
 
 
@@ -227,7 +228,7 @@ async def _request(
             verbose=verbose,
         )
         if verbose:
-            print(f"  #{request_num}: TIMEOUT {latency_ms:.1f}ms ({payload_emotion})", flush=True)
+            print(f"  #{request_num}: TIMEOUT {latency_ms:.1f}ms ({payload_emotion}) — all providers exhausted, no response", flush=True)
         summary.add(result)
         return
     except httpx.HTTPStatusError as exc:
@@ -266,6 +267,7 @@ async def _request(
     fallback_used = False
     error_code = ""
     providers_attempted = []
+    provider_errors = {}
 
     if resp.status_code == 200:
         try:
@@ -273,6 +275,7 @@ async def _request(
             provider = data.get("provider", "")
             fallback_used = data.get("fallbackUsed", False)
             providers_attempted = data.get("providersAttempted", [])
+            provider_errors = data.get("providerErrors", {})
             if data.get("status") == "lookup_unavailable":
                 error_code = "lookup_unavailable"
         except Exception:
@@ -294,21 +297,25 @@ async def _request(
         request_num=request_num,
         payload_emotion=payload_emotion,
         providers_attempted=providers_attempted,
+        provider_errors=provider_errors,
         verbose=verbose,
     )
 
     if verbose:
         if providers_attempted:
-            chain = " → ".join(providers_attempted)
             depth = len(providers_attempted)
+            status_str = str(resp.status_code)
+            print(f"  #{request_num}: [{depth}] {latency_ms:7.1f}ms {status_str} ({payload_emotion})", flush=True)
+            for p in providers_attempted:
+                err = provider_errors.get(p)
+                if err:
+                    print(f"         {p:12} ✗ {err}", flush=True)
+                else:
+                    print(f"         {p:12} ✓ ok", flush=True)
         elif provider:
-            chain = provider  # backend didn't return full chain, show final provider
-            depth = "?"
+            print(f"  #{request_num}: [?] {provider:12} {latency_ms:7.1f}ms {resp.status_code} ({payload_emotion})", flush=True)
         else:
-            chain = "unknown"
-            depth = "?"
-        status_str = str(resp.status_code)
-        print(f"  #{request_num}: [{depth}] {chain:35} {latency_ms:7.1f}ms {status_str} ({payload_emotion})", flush=True)
+            print(f"  #{request_num}: [?] unknown      {latency_ms:7.1f}ms {resp.status_code} ({payload_emotion})", flush=True)
 
     summary.add(result)
 

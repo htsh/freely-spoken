@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,7 @@ class LookupResult(BaseModel):
     fallbackUsed: bool
     crisisFlag: bool
     providersAttempted: List[str] = Field(default_factory=list)
+    providerErrors: Dict[str, str] = Field(default_factory=dict)  # provider -> failure reason
 
 
 class StoicStubResult(BaseModel):

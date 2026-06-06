@@ -52,11 +52,14 @@ class LLMResult:
     retry_count: int
     fallback_used: bool
     parsed: Any = None  # value returned by an optional validate() callback
-    providers_attempted: list[str] = None  # list of providers tried in order
+    providers_attempted: list[str] = None  # ordered list of providers tried
+    provider_errors: dict[str, str] = None  # provider -> failure reason for each skip
 
     def __post_init__(self):
         if self.providers_attempted is None:
             self.providers_attempted = []
+        if self.provider_errors is None:
+            self.provider_errors = {}
 
 
 class AllProvidersFailedError(Exception):
@@ -98,6 +101,22 @@ def _is_transient(error: Exception) -> bool:
     return isinstance(cause, (httpx.TimeoutException, httpx.ConnectError))
 
 
+def _error_reason(error: Exception) -> str:
+    code = _status_code(error)
+    if code == 429:
+        return "rate_limited"
+    if code in (500, 502, 503, 504):
+        return f"http_{code}"
+    cause = getattr(error, "__cause__", None)
+    if isinstance(cause, httpx.TimeoutException):
+        return "timeout"
+    if isinstance(cause, httpx.ConnectError):
+        return "connect_error"
+    if isinstance(error, OutputValidationError):
+        return "bad_output"
+    return f"error({type(error).__name__})"
+
+
 async def run(
     system_prompt: str,
     user_prompt: str,
@@ -117,6 +136,7 @@ async def run(
     primary = order[0] if order else None
     last_error: Exception | None = None
     providers_attempted: list[str] = []
+    provider_errors: dict[str, str] = {}
 
     for name in order:
         if name not in PROVIDERS:
@@ -125,6 +145,7 @@ async def run(
 
         providers_attempted.append(name)
         model, generate = PROVIDERS[name]
+        this_error: Exception | None = None
 
         # Try this provider with bounded retries for transient errors.
         for attempt in range(max_retries):
@@ -132,6 +153,7 @@ async def run(
                 text = await generate(system_prompt, user_prompt)
             except _ERRORS as e:
                 last_error = e
+                this_error = e
                 if _is_rate_limit(e):
                     # immediate fallback — do not retry on this provider
                     break
@@ -153,6 +175,7 @@ async def run(
                     parsed = validate(text)
                 except OutputValidationError as e:
                     last_error = e
+                    this_error = e
                     break
             else:
                 parsed = None
@@ -165,6 +188,10 @@ async def run(
                 fallback_used=(name != primary),
                 parsed=parsed,
                 providers_attempted=providers_attempted,
+                provider_errors=provider_errors,
             )
+
+        if this_error is not None:
+            provider_errors[name] = _error_reason(this_error)
 
     raise AllProvidersFailedError(last_error)

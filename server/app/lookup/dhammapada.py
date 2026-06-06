@@ -349,6 +349,7 @@ class DhammapadaAdapter:
             retry_count=llm.retry_count,
             fallback_used=llm.fallback_used,
             providers_attempted=llm.providers_attempted,
+            provider_errors=llm.provider_errors,
         )
 
 

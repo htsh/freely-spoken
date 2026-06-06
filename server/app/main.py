@@ -305,11 +305,11 @@ async def lookup(
         fallbackUsed=result.fallback_used,
         crisisFlag=crisis_flag,
         providersAttempted=result.providers_attempted or [],
+        providerErrors=result.provider_errors or {},
     )
-    response_data = payload.model_dump()
     return JSONResponse(
         status_code=200,
-        content=response_data,
+        content=payload.model_dump(),
         headers={"X-Lookup-Request-ID": request_id},
     )
 

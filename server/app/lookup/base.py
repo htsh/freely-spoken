@@ -22,6 +22,7 @@ class LookupResult:
     provider: str = ""
     model: str = ""
     providers_attempted: List[str] = field(default_factory=list)  # full chain for load test visibility
+    provider_errors: dict = field(default_factory=dict)  # provider -> failure reason for skipped providers
 
 
 @dataclass
