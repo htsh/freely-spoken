@@ -129,6 +129,10 @@ class Result:
     fallback_used: bool = False
     error_code: str = ""  # e.g. "all_providers_failed", "lookup_unavailable"
     raw: str = ""  # body or error text
+    request_num: int = 0
+    payload_emotion: str = ""  # emotion from the payload for debugging
+    providers_attempted: list[str] = field(default_factory=list)  # which providers were tried
+    verbose: bool = False  # whether to print per-request details
 
 
 @dataclass
@@ -142,10 +146,14 @@ class Summary:
     latencies: list[float] = field(default_factory=list)
     slowest: Result | None = None
     fastest: Result | None = None
+    provider_latencies: dict[str, list[float]] = field(default_factory=dict)  # per-provider latency tracking
+    provider_errors: dict[str, int] = field(default_factory=dict)  # per-provider error counts
+    all_results: list[Result] = field(default_factory=list)  # full result history for detailed analysis
 
     def add(self, r: Result) -> None:
         self.total += 1
         self.latencies.append(r.latency_ms)
+        self.all_results.append(r)
 
         if r.status == 200:
             self.ok_200 += 1
@@ -154,6 +162,12 @@ class Summary:
 
         if r.provider:
             self.provider_counts[r.provider] = self.provider_counts.get(r.provider, 0) + 1
+            if r.provider not in self.provider_latencies:
+                self.provider_latencies[r.provider] = []
+            self.provider_latencies[r.provider].append(r.latency_ms)
+            if r.status != 200:
+                self.provider_errors[r.provider] = self.provider_errors.get(r.provider, 0) + 1
+
         if r.fallback_used:
             self.fallback_count += 1
         if r.error_code == "lookup_unavailable":
@@ -176,8 +190,17 @@ def _make_payload() -> dict[str, Any]:
     }
 
 
-async def _request(client: httpx.AsyncClient, url: str, secret: str | None, summary: Summary) -> None:
+async def _request(
+    client: httpx.AsyncClient,
+    url: str,
+    secret: str | None,
+    summary: Summary,
+    request_num: int = 0,
+    verbose: bool = False,
+) -> None:
     payload = _make_payload()
+    payload_emotion = payload.get("emotions", ["unknown"])[0]  # first emotion for logging
+
     headers = {"Content-Type": "application/json"}
     if secret:
         headers["X-Lookup-Client-Secret"] = secret
@@ -187,15 +210,46 @@ async def _request(client: httpx.AsyncClient, url: str, secret: str | None, summ
         resp = await client.post(url, headers=headers, json=payload, timeout=60.0)
     except httpx.TimeoutException as exc:
         latency_ms = (time.perf_counter() - started) * 1000
-        summary.add(Result(latency_ms=latency_ms, status=0, raw="httpx timeout", error_code="timeout"))
+        result = Result(
+            latency_ms=latency_ms,
+            status=0,
+            raw="httpx timeout",
+            error_code="timeout",
+            request_num=request_num,
+            payload_emotion=payload_emotion,
+            verbose=verbose,
+        )
+        if verbose:
+            print(f"  #{request_num}: TIMEOUT {latency_ms:.1f}ms ({payload_emotion})", flush=True)
+        summary.add(result)
         return
     except httpx.HTTPStatusError as exc:
         latency_ms = (time.perf_counter() - started) * 1000
-        summary.add(Result(latency_ms=latency_ms, status=exc.response.status_code, raw=exc.response.text[:200]))
+        result = Result(
+            latency_ms=latency_ms,
+            status=exc.response.status_code,
+            raw=exc.response.text[:200],
+            request_num=request_num,
+            payload_emotion=payload_emotion,
+            verbose=verbose,
+        )
+        if verbose:
+            print(f"  #{request_num}: HTTP {exc.response.status_code} {latency_ms:.1f}ms ({payload_emotion})", flush=True)
+        summary.add(result)
         return
     except Exception as exc:
         latency_ms = (time.perf_counter() - started) * 1000
-        summary.add(Result(latency_ms=latency_ms, status=0, raw=str(exc)[:200]))
+        result = Result(
+            latency_ms=latency_ms,
+            status=0,
+            raw=str(exc)[:200],
+            request_num=request_num,
+            payload_emotion=payload_emotion,
+            verbose=verbose,
+        )
+        if verbose:
+            print(f"  #{request_num}: ERROR {latency_ms:.1f}ms ({payload_emotion}): {exc}", flush=True)
+        summary.add(result)
         return
 
     latency_ms = (time.perf_counter() - started) * 1000
@@ -204,12 +258,14 @@ async def _request(client: httpx.AsyncClient, url: str, secret: str | None, summ
     provider = ""
     fallback_used = False
     error_code = ""
+    providers_attempted = []
 
     if resp.status_code == 200:
         try:
             data = resp.json()
             provider = data.get("provider", "")
             fallback_used = data.get("fallbackUsed", False)
+            providers_attempted = data.get("providersAttempted", [])
             if data.get("status") == "lookup_unavailable":
                 error_code = "lookup_unavailable"
         except Exception:
@@ -221,45 +277,56 @@ async def _request(client: httpx.AsyncClient, url: str, secret: str | None, summ
         except Exception:
             pass
 
-    summary.add(Result(
+    result = Result(
         latency_ms=latency_ms,
         status=resp.status_code,
         provider=provider,
         fallback_used=fallback_used,
         error_code=error_code,
         raw=body[:500],
-    ))
+        request_num=request_num,
+        payload_emotion=payload_emotion,
+        providers_attempted=providers_attempted,
+        verbose=verbose,
+    )
+
+    if verbose:
+        fb_marker = " [FALLBACK]" if fallback_used else ""
+        print(f"  #{request_num}: {provider:12} {latency_ms:7.1f}ms {resp.status_code}{fb_marker} ({payload_emotion})", flush=True)
+
+    summary.add(result)
 
 
 async def _worker(
     client: httpx.AsyncClient,
     url: str,
     secret: str | None,
-    queue: asyncio.Queue[None],
+    queue: asyncio.Queue[tuple[int, asyncio.Event]],
     summary: Summary,
     total: int,
     progress_lock: asyncio.Lock,
     progress_counter: list[int],
+    verbose: bool = False,
 ) -> None:
     while True:
         try:
-            queue.get_nowait()
+            request_num, done_event = queue.get_nowait()
         except asyncio.QueueEmpty:
             break
-        await _request(client, url, secret, summary)
+        await _request(client, url, secret, summary, request_num=request_num, verbose=verbose)
         async with progress_lock:
             progress_counter[0] += 1
             done = progress_counter[0]
-            if done % 5 == 0 or done == total:
+            if not verbose and (done % 5 == 0 or done == total):
                 print(f"  ... {done}/{total} completed", flush=True)
 
 
-async def run(host: str, secret: str | None, requests: int, concurrency: int) -> Summary:
+async def run(host: str, secret: str | None, requests: int, concurrency: int, verbose: bool = False) -> Summary:
     url = f"{host.rstrip('/')}/lookup"
     summary = Summary()
-    queue: asyncio.Queue[None] = asyncio.Queue()
-    for _ in range(requests):
-        queue.put_nowait(None)
+    queue: asyncio.Queue[tuple[int, asyncio.Event]] = asyncio.Queue()
+    for i in range(requests):
+        queue.put_nowait((i + 1, asyncio.Event()))
 
     progress_lock = asyncio.Lock()
     progress_counter: list[int] = [0]
@@ -267,7 +334,9 @@ async def run(host: str, secret: str | None, requests: int, concurrency: int) ->
     limits = httpx.Limits(max_connections=concurrency * 2, max_keepalive_connections=concurrency)
     async with httpx.AsyncClient(limits=limits, http2=False) as client:
         workers = [
-            asyncio.create_task(_worker(client, url, secret, queue, summary, requests, progress_lock, progress_counter))
+            asyncio.create_task(
+                _worker(client, url, secret, queue, summary, requests, progress_lock, progress_counter, verbose=verbose)
+            )
             for _ in range(concurrency)
         ]
         await asyncio.gather(*workers)
@@ -287,9 +356,9 @@ def _p(latencies: list[float], pct: float) -> float:
 
 
 def report(summary: Summary) -> None:
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("LOAD TEST SUMMARY")
-    print("=" * 60)
+    print("=" * 70)
 
     print(f"\nTotal requests : {summary.total}")
     print(f"OK (HTTP 200)  : {summary.ok_200} ({100 * summary.ok_200 / summary.total:.1f}%)")
@@ -303,7 +372,7 @@ def report(summary: Summary) -> None:
 
     if summary.latencies:
         lats = summary.latencies
-        print(f"\nLatency (ms):")
+        print(f"\nOverall latency (ms):")
         print(f"  min : {min(lats):.1f}")
         print(f"  p50 : {_p(lats, 50):.1f}")
         print(f"  p95 : {_p(lats, 95):.1f}")
@@ -312,16 +381,36 @@ def report(summary: Summary) -> None:
         print(f"  mean: {statistics.mean(lats):.1f}")
 
     if summary.provider_counts:
-        print(f"\nProviders used:")
+        print(f"\nProvider breakdown:")
         for prov, count in sorted(summary.provider_counts.items(), key=lambda x: -x[1]):
-            print(f"  {prov:12} : {count} ({100 * count / summary.total:.1f}%)")
+            prov_lats = summary.provider_latencies.get(prov, [])
+            prov_errors = summary.provider_errors.get(prov, 0)
+            prov_success_rate = (count - prov_errors) / count * 100 if count > 0 else 0
+            if prov_lats:
+                prov_p95 = _p(prov_lats, 95)
+                prov_mean = statistics.mean(prov_lats)
+                print(f"  {prov:12} : {count:2}  {prov_success_rate:5.1f}% OK  p95={prov_p95:7.1f}ms  mean={prov_mean:7.1f}ms")
+            else:
+                print(f"  {prov:12} : {count:2}  (no successful latency data)")
         if summary.fallback_count:
-            print(f"  Fallback used: {summary.fallback_count} ({100 * summary.fallback_count / summary.total:.1f}%)")
+            print(f"\n  Fallback triggered: {summary.fallback_count} ({100 * summary.fallback_count / summary.total:.1f}%)")
     else:
         print("\nProviders used: none parsed (all errors?)")
 
     if summary.unavailable_count:
         print(f"\nLookup unavailable (crisis filter): {summary.unavailable_count}")
+
+    # Slowest requests breakdown
+    if len(summary.all_results) > 0:
+        print(f"\nSlowest 3 requests:")
+        sorted_by_latency = sorted(summary.all_results, key=lambda r: -r.latency_ms)[:3]
+        for r in sorted_by_latency:
+            fb_note = " [FALLBACK]" if r.fallback_used else ""
+            print(f"  #{r.request_num}: {r.provider or 'NONE':12} {r.latency_ms:7.1f}ms status={r.status} ({r.payload_emotion}){fb_note}")
+            if r.error_code:
+                print(f"           Error: {r.error_code}")
+            if r.providers_attempted:
+                print(f"           Attempted: {', '.join(r.providers_attempted)}")
 
     if summary.fastest and summary.slowest:
         print(f"\nFastest request: {summary.fastest.latency_ms:.1f} ms  (status {summary.fastest.status})")
@@ -329,7 +418,7 @@ def report(summary: Summary) -> None:
         if summary.slowest.status != 200 and summary.slowest.raw:
             print(f"  Slowest body: {summary.slowest.raw[:200]}")
 
-    print("=" * 60)
+    print("=" * 70)
 
 
 # ── CLI ─────────────────────────────────────────────────────────────────────────
@@ -342,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--requests", type=int, default=50, help="Total number of requests to send (default: 50)")
     parser.add_argument("--concurrency", type=int, default=4, help="Number of concurrent workers (default: 4)")
     parser.add_argument("--delay", type=float, default=0.0, help="Delay in seconds between each request (default: 0)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Log each request with provider, latency, and status")
     args = parser.parse_args(argv)
     secret = args.secret or os.environ.get("LOOKUP_CLIENT_SECRET", "")
 
@@ -352,6 +442,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"Target: {args.host}/lookup")
     print(f"Requests: {args.requests}  Concurrency: {args.concurrency}  Delay: {args.delay}s")
+    if args.verbose:
+        print("Verbose mode: ON")
     print("Starting load test...")
 
     # If delay is requested, we throttle by using a single worker with sleep
@@ -362,14 +454,22 @@ def main(argv: list[str] | None = None) -> int:
             limits = httpx.Limits(max_connections=1, max_keepalive_connections=1)
             async with httpx.AsyncClient(limits=limits) as client:
                 for i in range(args.requests):
-                    await _request(client, f"{args.host.rstrip('/')}/lookup", secret or None, summary)
-                    print(f"  ... {i + 1}/{args.requests} completed", flush=True)
+                    await _request(
+                        client,
+                        f"{args.host.rstrip('/')}/lookup",
+                        secret or None,
+                        summary,
+                        request_num=i + 1,
+                        verbose=args.verbose,
+                    )
+                    if not args.verbose:
+                        print(f"  ... {i + 1}/{args.requests} completed", flush=True)
                     if i < args.requests - 1:
                         await asyncio.sleep(args.delay)
             return summary
         summary = asyncio.run(sequential())
     else:
-        summary = asyncio.run(run(args.host, secret or None, args.requests, args.concurrency))
+        summary = asyncio.run(run(args.host, secret or None, args.requests, args.concurrency, verbose=args.verbose))
 
     report(summary)
     return 0 if summary.ok_200 == summary.total else 1
