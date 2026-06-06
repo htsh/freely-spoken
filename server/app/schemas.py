@@ -29,8 +29,6 @@ class LookupResult(BaseModel):
     crisisFlag: bool
     providersAttempted: List[str] = Field(default_factory=list)
 
-    model_config = {"exclude_none": False}
-
 
 class StoicStubResult(BaseModel):
     status: Literal["not_implemented"]

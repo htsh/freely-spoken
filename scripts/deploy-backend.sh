@@ -15,17 +15,15 @@ fi
 
 echo "🚀 Deploying backend to $TARGET_HOST:$TARGET_PATH"
 
-# 1. Sync server/ to vps
-echo "📦 Syncing server/ directory..."
+# 1. Sync app code directly to where the Dockerfile expects it
+echo "📦 Syncing app/ directory..."
 rsync -avz --delete \
-    server/ \
-    "$TARGET_HOST:$TARGET_PATH/server/" \
-    --exclude='.env.local' \
+    server/app/ \
+    "$TARGET_HOST:$TARGET_PATH/app/" \
     --exclude='__pycache__' \
-    --exclude='.pytest_cache' \
-    --exclude='.venv'
+    --exclude='*.pyc'
 
-# Also sync Dockerfile and pyproject.toml
+# Sync Dockerfile and pyproject.toml
 rsync -avz \
     server/Dockerfile \
     server/pyproject.toml \

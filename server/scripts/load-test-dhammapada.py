@@ -298,10 +298,16 @@ async def _request(
     )
 
     if verbose:
-        # Show the provider chain and final provider
-        chain = " → ".join(providers_attempted) if providers_attempted else "TIMEOUT"
-        depth = len(providers_attempted) if providers_attempted else 0
-        status_str = str(resp.status_code) if resp.status_code else "TIMEOUT"
+        if providers_attempted:
+            chain = " → ".join(providers_attempted)
+            depth = len(providers_attempted)
+        elif provider:
+            chain = provider  # backend didn't return full chain, show final provider
+            depth = "?"
+        else:
+            chain = "unknown"
+            depth = "?"
+        status_str = str(resp.status_code)
         print(f"  #{request_num}: [{depth}] {chain:35} {latency_ms:7.1f}ms {status_str} ({payload_emotion})", flush=True)
 
     summary.add(result)
@@ -412,7 +418,10 @@ def report(summary: Summary) -> None:
 
     # Chain depth distribution — shows how stressed the backend is
     if summary.chain_depth:
+        has_chain_data = any(d > 0 for d in summary.chain_depth)
         print(f"\nProvider chain depth (how many providers tried):")
+        if not has_chain_data:
+            print("  (backend not returning providersAttempted — upgrade backend for full chain visibility)")
         provider_names = ["groq", "cerebras", "cloudflare", "openrouter", "cohere", "together"]
         for depth in sorted(summary.chain_depth.keys()):
             count = summary.chain_depth[depth]

@@ -307,8 +307,6 @@ async def lookup(
         providersAttempted=result.providers_attempted or [],
     )
     response_data = payload.model_dump()
-    response_data["xyzDebugFieldxyz"] = "DEBUG123"
-    response_data["providersAttempted"] = result.providers_attempted or []
     return JSONResponse(
         status_code=200,
         content=response_data,
