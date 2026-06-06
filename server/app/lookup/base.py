@@ -21,6 +21,7 @@ class LookupResult:
     # variant-routing layer copies them onto the response.
     provider: str = ""
     model: str = ""
+    providers_attempted: List[str] = field(default_factory=list)  # full chain for load test visibility
 
 
 @dataclass
