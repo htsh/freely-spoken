@@ -307,6 +307,7 @@ async def lookup(
         providersAttempted=result.providers_attempted or [],
     )
     response_data = payload.model_dump()
+    logger.info(f"result.providers_attempted={result.providers_attempted}")
     response_data["providersAttempted"] = result.providers_attempted or []
     return JSONResponse(
         status_code=200,
