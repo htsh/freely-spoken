@@ -95,12 +95,19 @@ def _is_rate_limit(error: Exception) -> bool:
     return _status_code(error) == 429
 
 
+def _is_timeout(error: Exception) -> bool:
+    cause = getattr(error, "__cause__", None)
+    return isinstance(cause, httpx.TimeoutException)
+
+
 def _is_transient(error: Exception) -> bool:
+    # Worth a same-provider retry: a server hiccup or a transient connect blip.
+    # Timeouts are deliberately excluded — see the runner loop.
     code = _status_code(error)
     if code in (500, 502, 503, 504):
         return True
     cause = getattr(error, "__cause__", None)
-    return isinstance(cause, (httpx.TimeoutException, httpx.ConnectError))
+    return isinstance(cause, httpx.ConnectError)
 
 
 def _effective_order(order: list[str], fast_tier: list[str]) -> list[str]:
@@ -175,8 +182,10 @@ async def run(
             except _ERRORS as e:
                 last_error = e
                 this_error = e
-                if _is_rate_limit(e):
-                    # immediate fallback — do not retry on this provider
+                if _is_rate_limit(e) or _is_timeout(e):
+                    # 429 or a too-slow provider: retrying the same one won't help
+                    # and only burns the client's overall budget. Fall through to
+                    # the next provider immediately.
                     break
                 if not _is_transient(e):
                     # final non-retryable error on this provider; move on

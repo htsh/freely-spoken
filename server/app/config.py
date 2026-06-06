@@ -56,7 +56,7 @@ def load() -> Settings:
             os.getenv("LOOKUP_FAST_TIER", "groq,cerebras,mistral")
         ),
         provider_timeouts=_parse_provider_timeouts(
-            os.getenv("LOOKUP_PROVIDER_TIMEOUTS", "openrouter:15,cohere:20")
+            os.getenv("LOOKUP_PROVIDER_TIMEOUTS", "nvidia:15,openrouter:15,cohere:20,cloudflare:15,together:15")
         ),
         default_timeout=float(os.getenv("LOOKUP_DEFAULT_TIMEOUT", "60")),
         max_retries=int(os.getenv("LOOKUP_MAX_RETRIES", "3")),
