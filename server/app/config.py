@@ -10,7 +10,7 @@ import os
 from dataclasses import dataclass
 
 
-_DEFAULT_ORDER = ["groq", "cerebras", "mistral", "nvidia", "cloudflare", "openrouter", "cohere", "together"]
+_DEFAULT_ORDER = ["groq", "cerebras", "mistral", "cloudflare", "openrouter", "cohere", "together", "nvidia"]
 
 
 def _parse_provider_order(raw: str) -> list[str]:
