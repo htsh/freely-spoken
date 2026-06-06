@@ -25,7 +25,7 @@ from typing import Any, Awaitable, Callable
 import httpx
 
 from app.config import SETTINGS
-from app.providers import cerebras, cloudflare, cohere, gemini, groq, mistral, nvidia, openrouter, together
+from app.providers import cerebras, cloudflare, cohere, gemini, groq, huggingface, mistral, nvidia, openrouter, together
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +41,10 @@ PROVIDERS: dict[str, tuple[str, Callable[[str, str], Awaitable[str]]]] = {
     cohere.NAME: (cohere.MODEL, cohere.generate),
     mistral.NAME: (mistral.MODEL, mistral.generate),
     nvidia.NAME: (nvidia.MODEL, nvidia.generate),
+    huggingface.NAME: (huggingface.MODEL, huggingface.generate),
 }
 
-_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, cohere.CohereError, gemini.GeminiError, mistral.MistralError, nvidia.NvidiaError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
+_ERRORS = (cerebras.CerebrasError, cloudflare.CloudflareError, cohere.CohereError, gemini.GeminiError, huggingface.HuggingFaceError, mistral.MistralError, nvidia.NvidiaError, openrouter.OpenRouterError, groq.GroqError, together.TogetherError)
 
 
 @dataclass
@@ -65,11 +66,21 @@ class LLMResult:
 
 
 class AllProvidersFailedError(Exception):
-    def __init__(self, last_error: Exception | None):
+    def __init__(
+        self,
+        last_error: Exception | None,
+        *,
+        providers_attempted: list[str] | None = None,
+        provider_errors: dict[str, str] | None = None,
+    ):
         super().__init__(
             f"All providers exhausted. Last error: {last_error!r}"
         )
         self.last_error = last_error
+        # Operational context for alerting — provider names and failure reasons
+        # only. Never the prompt/body text (see the privacy allowlist).
+        self.providers_attempted = providers_attempted or []
+        self.provider_errors = provider_errors or {}
 
 
 class OutputValidationError(Exception):
@@ -224,4 +235,8 @@ async def run(
         if this_error is not None:
             provider_errors[name] = _error_reason(this_error)
 
-    raise AllProvidersFailedError(last_error)
+    raise AllProvidersFailedError(
+        last_error,
+        providers_attempted=providers_attempted,
+        provider_errors=provider_errors,
+    )

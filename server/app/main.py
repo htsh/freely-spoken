@@ -28,6 +28,7 @@ from fastapi.responses import JSONResponse  # noqa: E402
 from app.config import SETTINGS  # noqa: E402
 from app.crisis import check as check_crisis  # noqa: E402
 from app.llm_runner import AllProvidersFailedError  # noqa: E402
+from app.observability import init_sentry, report_all_providers_failed  # noqa: E402
 from app.lookup.base import LookupRequest  # noqa: E402
 from app.lookup.bible_api import BibleApiError  # noqa: E402
 from app.lookup.christian import ChristianAdapter, ChristianAdapterError  # noqa: E402
@@ -65,6 +66,7 @@ ADAPTERS = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_sentry()  # no-op unless SENTRY_DSN is set
     app.state.semaphore = asyncio.Semaphore(SETTINGS.max_concurrency)
     yield
 
@@ -203,6 +205,11 @@ async def lookup(
             crisis_flag=crisis_flag,
             started=started,
             error=repr(e.last_error),
+        )
+        report_all_providers_failed(
+            request_id=request_id,
+            variant=body.appVariant,
+            error=e,
         )
         return _error_response(
             502,
