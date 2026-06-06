@@ -42,7 +42,7 @@ echo "♻️  Removing old container..."
 ssh "$TARGET_HOST" "docker rm mic-check-lookup || true"
 
 echo "🚀 Starting new container..."
-ssh "$TARGET_HOST" "docker run -d --name mic-check-lookup -p 127.0.0.1:7777:8080 --restart unless-stopped mic-check-lookup"
+ssh "$TARGET_HOST" "docker run -d --name mic-check-lookup -p 127.0.0.1:7777:8080 --restart unless-stopped --env-file $TARGET_PATH/.env mic-check-lookup"
 
 echo "✅ Deployment complete!"
 echo "Check logs: ssh $TARGET_HOST 'docker logs -f mic-check-lookup'"
