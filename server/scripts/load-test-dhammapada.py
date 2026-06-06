@@ -149,6 +149,7 @@ class Summary:
     provider_latencies: dict[str, list[float]] = field(default_factory=dict)  # per-provider latency tracking
     provider_errors: dict[str, int] = field(default_factory=dict)  # per-provider error counts
     all_results: list[Result] = field(default_factory=list)  # full result history for detailed analysis
+    chain_depth: dict[int, int] = field(default_factory=dict)  # how many providers were tried (0=timeout, 1=primary, 2=1st fallback, etc.)
 
     def add(self, r: Result) -> None:
         self.total += 1
@@ -167,6 +168,12 @@ class Summary:
             self.provider_latencies[r.provider].append(r.latency_ms)
             if r.status != 200:
                 self.provider_errors[r.provider] = self.provider_errors.get(r.provider, 0) + 1
+
+        # Track chain depth: how many providers were attempted
+        depth = len(r.providers_attempted) if r.providers_attempted else 0
+        if r.error_code == "timeout":
+            depth = 0  # timeout means all providers exhausted
+        self.chain_depth[depth] = self.chain_depth.get(depth, 0) + 1
 
         if r.fallback_used:
             self.fallback_count += 1
@@ -291,8 +298,11 @@ async def _request(
     )
 
     if verbose:
-        fb_marker = " [FALLBACK]" if fallback_used else ""
-        print(f"  #{request_num}: {provider:12} {latency_ms:7.1f}ms {resp.status_code}{fb_marker} ({payload_emotion})", flush=True)
+        # Show the provider chain and final provider
+        chain = " → ".join(providers_attempted) if providers_attempted else "TIMEOUT"
+        depth = len(providers_attempted) if providers_attempted else 0
+        status_str = str(resp.status_code) if resp.status_code else "TIMEOUT"
+        print(f"  #{request_num}: [{depth}] {chain:35} {latency_ms:7.1f}ms {status_str} ({payload_emotion})", flush=True)
 
     summary.add(result)
 
@@ -399,6 +409,19 @@ def report(summary: Summary) -> None:
 
     if summary.unavailable_count:
         print(f"\nLookup unavailable (crisis filter): {summary.unavailable_count}")
+
+    # Chain depth distribution — shows how stressed the backend is
+    if summary.chain_depth:
+        print(f"\nProvider chain depth (how many providers tried):")
+        provider_names = ["groq", "cerebras", "cloudflare", "openrouter", "cohere", "together"]
+        for depth in sorted(summary.chain_depth.keys()):
+            count = summary.chain_depth[depth]
+            pct = 100 * count / summary.total
+            if depth == 0:
+                print(f"  [TIMEOUT]           : {count:2} ({pct:5.1f}%) — all providers exhausted")
+            else:
+                chain = " → ".join(provider_names[:depth])
+                print(f"  [{depth}] {chain:35} : {count:2} ({pct:5.1f}%)")
 
     # Slowest requests breakdown
     if len(summary.all_results) > 0:

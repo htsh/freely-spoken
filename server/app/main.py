@@ -304,6 +304,7 @@ async def lookup(
         retryCount=result.retry_count,
         fallbackUsed=result.fallback_used,
         crisisFlag=crisis_flag,
+        providersAttempted=result.providers_attempted or [],
     )
     return JSONResponse(
         status_code=200,

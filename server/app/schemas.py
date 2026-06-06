@@ -27,6 +27,7 @@ class LookupResult(BaseModel):
     retryCount: int
     fallbackUsed: bool
     crisisFlag: bool
+    providersAttempted: List[str] = Field(default_factory=list)
 
 
 class StoicStubResult(BaseModel):

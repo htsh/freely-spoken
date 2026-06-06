@@ -52,6 +52,11 @@ class LLMResult:
     retry_count: int
     fallback_used: bool
     parsed: Any = None  # value returned by an optional validate() callback
+    providers_attempted: list[str] = None  # list of providers tried in order
+
+    def __post_init__(self):
+        if self.providers_attempted is None:
+            self.providers_attempted = []
 
 
 class AllProvidersFailedError(Exception):
@@ -111,12 +116,14 @@ async def run(
     max_retries = SETTINGS.max_retries
     primary = order[0] if order else None
     last_error: Exception | None = None
+    providers_attempted: list[str] = []
 
     for name in order:
         if name not in PROVIDERS:
             logger.warning("unknown_provider_in_order", extra={"provider": name})
             continue
 
+        providers_attempted.append(name)
         model, generate = PROVIDERS[name]
 
         # Try this provider with bounded retries for transient errors.
@@ -157,6 +164,7 @@ async def run(
                 retry_count=attempt,
                 fallback_used=(name != primary),
                 parsed=parsed,
+                providers_attempted=providers_attempted,
             )
 
     raise AllProvidersFailedError(last_error)
