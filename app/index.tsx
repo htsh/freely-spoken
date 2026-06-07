@@ -234,7 +234,7 @@ export default function HomeScreen() {
       appState === 'responseLookup';
     if (!working) return;
 
-    activateKeepAwakeAsync(KEEP_AWAKE_TAG);
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
     return () => {
       deactivateKeepAwake(KEEP_AWAKE_TAG);
     };
