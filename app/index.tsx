@@ -9,6 +9,7 @@ import { getBrand } from '@/constants/brand';
 import { Fonts } from '@/constants/theme';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { emptyHistory, pushSample } from '@/hooks/waveform-utils';
+import { buildLookupCaptions } from '@/hooks/lookup-cue';
 import type { SentimentResult } from '@/hooks/sentiment-utils';
 import { useTranscriber } from '@/hooks/use-transcriber';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
@@ -53,6 +54,7 @@ const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
 
 const WAVEFORM_BAR_COUNT = 28;
 const KEEP_AWAKE_TAG = 'recording-flow';
+const LOOKUP_CAPTION_INTERVAL_MS = 2000;
 const MAX_RECORDING_SECONDS = 90;
 const WRAP_UP_WARNING_SECONDS = 10;
 const WAVEFORM_BAR_MIN_HEIGHT = 4;
@@ -107,6 +109,102 @@ function RecordingLevelMeter({
           ]}
         />
       ))}
+    </View>
+  );
+}
+
+function ResponseLookupCue({
+  appVariant,
+  reduceMotion,
+  styles,
+}: {
+  appVariant: AppVariant;
+  reduceMotion: boolean;
+  styles: HomeStyles;
+}) {
+  const captions = useMemo(
+    () => buildLookupCaptions(RESPONSE_NOUN_LABELS[appVariant]),
+    [appVariant],
+  );
+  const [captionIndex, setCaptionIndex] = useState(0);
+
+  const rotate = useRef(new Animated.Value(0)).current;
+  const haloPulse = useRef(new Animated.Value(1)).current;
+
+  // Advance the caption every interval, clamped at the last line (no loop).
+  useEffect(() => {
+    if (captionIndex >= captions.length - 1) return;
+    const id = setInterval(() => {
+      setCaptionIndex((prev) => Math.min(prev + 1, captions.length - 1));
+    }, LOOKUP_CAPTION_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [captionIndex, captions.length]);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      rotate.stopAnimation();
+      rotate.setValue(0);
+      haloPulse.stopAnimation();
+      haloPulse.setValue(1);
+      return;
+    }
+
+    const spin = Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(haloPulse, {
+          toValue: 1.06,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(haloPulse, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    spin.start();
+    pulse.start();
+
+    return () => {
+      spin.stop();
+      pulse.stop();
+      rotate.stopAnimation();
+      rotate.setValue(0);
+      haloPulse.stopAnimation();
+      haloPulse.setValue(1);
+    };
+  }, [reduceMotion, rotate, haloPulse]);
+
+  const spinDeg = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <View style={styles.processingPanel}>
+      <Animated.View style={[styles.processingHalo, { transform: [{ scale: haloPulse }] }]}>
+        <Animated.View
+          style={[styles.processingCore, { transform: [{ rotate: spinDeg }] }]}
+        />
+      </Animated.View>
+      <ThemedText type="subtitle" style={styles.processingTitle}>
+        {captions[captionIndex]}
+      </ThemedText>
+      <ThemedText style={styles.processingPrivacyText}>
+        Only your private summary was sent — no audio or transcript.
+      </ThemedText>
     </View>
   );
 }
@@ -392,7 +490,11 @@ export default function HomeScreen() {
 
         {appState === 'responseLookup' && (
           <View style={styles.center}>
-            <ThemedText>Finding a response...</ThemedText>
+            <ResponseLookupCue
+              appVariant={appVariant}
+              reduceMotion={reduceMotionEnabled}
+              styles={styles}
+            />
           </View>
         )}
 
