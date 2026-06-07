@@ -372,6 +372,106 @@ Current automated coverage focuses on:
 
 The backend tests are hermetic: provider calls are stubbed and no API keys or network access are required.
 
+## Iterating on changes
+
+**Quick feedback (no device needed)**
+
+Run the full automated gate in a few seconds:
+
+```bash
+npm run lint && npm run typecheck && npm test
+```
+
+This catches type errors, lint violations, and pure-TS logic bugs. Most changes to hooks, services, and utilities can be verified entirely here.
+
+**On-device iteration**
+
+After the quick gate passes, install on device:
+
+```bash
+npx expo run:ios --device
+```
+
+This rebuilds and reinstalls the app. Most TypeScript changes — UI, hooks, services — take effect with a standard rebuild and do not require a full prebuild.
+
+**When to run prebuild first**
+
+Run `npx expo prebuild` before `npx expo run:ios --device` when you:
+
+- Add or remove a native dependency (any package that ships a config plugin — anything installed with `npx expo install`)
+- Change `app.config.js` — bundle identifiers, permissions, URL schemes, display names, or icons
+- Upgrade the Expo SDK
+
+```bash
+npx expo prebuild
+npx expo run:ios --device
+```
+
+Prebuild regenerates `ios/` from scratch. Changes made directly inside `ios/` do not survive a rebuild — durable changes belong in `app.config.js`, TypeScript source, or assets.
+
+**Testing the Idle Ashes variant**
+
+Both variants build from the same source. When touching shared flow or UI, test both:
+
+```bash
+EXPO_PUBLIC_APP_VARIANT=dhammapada npx expo run:ios --device
+```
+
+**Backend changes**
+
+```bash
+cd server
+pytest
+uvicorn app.main:app --reload --port 8080
+```
+
+Backend tests are hermetic so no provider keys are needed. For a full end-to-end pass, run the backend locally and point the app at it via `EXPO_PUBLIC_LOOKUP_API_URL=http://<your-mac-local-ip>:8080` in `.env`.
+
+## Submitting to TestFlight and the App Store
+
+EAS handles cloud signing and upload. Profiles are defined in [eas.json](eas.json).
+
+**Step 1 — Build**
+
+```bash
+# Freely Spoken
+eas build --profile production --platform ios
+
+# Idle Ashes
+eas build --profile production-idleashes --platform ios
+```
+
+EAS compiles and signs a `.ipa` in the cloud and uploads it to App Store Connect automatically. Builds typically take 10–20 minutes.
+
+**Step 2 — Submit**
+
+Once the build completes:
+
+```bash
+# Freely Spoken
+eas submit --profile production --platform ios
+
+# Idle Ashes
+eas submit --profile production-idleashes --platform ios
+```
+
+`eas submit` picks up the latest completed build for that profile and routes it to App Store Connect. To target a specific build, pass `--id <build-id>` from `eas build:list`.
+
+**Step 3 — TestFlight**
+
+After App Store Connect processes the build (5–15 min), it appears in TestFlight under the relevant app. Enable it for internal testers from there before promoting to external review or the App Store.
+
+**EAS profile summary**
+
+| Profile | Variant | Distribution | Use for |
+|---|---|---|---|
+| `development` | christian | internal | local dev with dev client |
+| `development-idleashes` | dhammapada | internal | local dev with dev client |
+| `preview` | christian | internal | ad-hoc QA without App Store submission |
+| `preview-idleashes` | dhammapada | internal | ad-hoc QA without App Store submission |
+| `production` | christian | store | TestFlight / App Store release |
+| `production-idleashes` | dhammapada | store | TestFlight / App Store release |
+
 ## Debugging tools
 
 ### Development debug route
