@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { StyleSheet, View, Pressable, ScrollView, Animated, Easing, AccessibilityInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -51,6 +52,7 @@ const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
 };
 
 const WAVEFORM_BAR_COUNT = 28;
+const KEEP_AWAKE_TAG = 'recording-flow';
 const WAVEFORM_BAR_MIN_HEIGHT = 4;
 const WAVEFORM_BAR_HEIGHT_RANGE = 22;
 
@@ -222,6 +224,21 @@ export default function HomeScreen() {
       setAppState('results');
     }
   }, [appState, isLookingUp, lookupResult, lookupError]);
+
+  // Keep the screen awake while the user is actively recording or waiting for
+  // on-device processing / server lookup to complete.
+  useEffect(() => {
+    const working =
+      appState === 'recording' ||
+      appState === 'processing' ||
+      appState === 'responseLookup';
+    if (!working) return;
+
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG);
+    return () => {
+      deactivateKeepAwake(KEEP_AWAKE_TAG);
+    };
+  }, [appState]);
 
   useEffect(() => {
     let isMounted = true;
