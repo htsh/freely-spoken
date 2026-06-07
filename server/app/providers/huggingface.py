@@ -18,9 +18,11 @@ import os
 import httpx
 
 HF_URL = "https://router.huggingface.co/v1/chat/completions"
-# Small, cheap, and enough for structured selection. The backend LLM only picks
-# a canonical id from a shortlist; it does not author text.
-DEFAULT_MODEL = "openai/gpt-oss-20b:fireworks-ai"
+# DeepSeek-V4-Flash: chosen as the backstop for sharper selection on hard
+# emotional inputs and fewer spurious refusals than smaller models, while still
+# cheap at tail volume. Override with HF_MODEL. The backend LLM only selects a
+# canonical id from a shortlist; it never authors text.
+DEFAULT_MODEL = "deepseek-ai/DeepSeek-V4-Flash:fireworks-ai"
 
 NAME = "huggingface"
 MODEL = os.getenv("HF_MODEL", DEFAULT_MODEL)

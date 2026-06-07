@@ -29,7 +29,7 @@ import time
 import httpx
 
 HF_URL = "https://router.huggingface.co/v1/chat/completions"
-DEFAULT_MODEL = "openai/gpt-oss-20b:fireworks-ai"
+DEFAULT_MODEL = "deepseek-ai/DeepSeek-V4-Flash:fireworks-ai"
 
 # ── ESTIMATES — verify and override with --in-price / --out-price ──────────────
 DEFAULT_IN_PRICE = 0.10   # $ per 1M input (prompt) tokens
