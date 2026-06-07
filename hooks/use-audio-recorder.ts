@@ -205,14 +205,16 @@ export function useAudioRecorder() {
     if (!recording) return null;
 
     recording.setOnRecordingStatusUpdate(null);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
     recordingRef.current = null;
-    inputLevelRef.current = 0;
-    setInputLevel(0);
-    setState('idle');
 
-    return uri;
+    try {
+      await recording.stopAndUnloadAsync();
+      return recording.getURI();
+    } finally {
+      inputLevelRef.current = 0;
+      setInputLevel(0);
+      setState('idle');
+    }
   }, []);
 
   return { state, duration, inputLevel, startRecording, stopRecording };

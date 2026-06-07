@@ -30,8 +30,8 @@ Override the model or pricing:
 
 ```bash
 python hf_cost_smoke.py 20 \
-  --model openai/gpt-oss-20b:fireworks-ai \
-  --in-price 0.10 --out-price 0.50        # $ per 1M tokens
+  --model deepseek-ai/DeepSeek-V4-Flash:fireworks-ai \
+  --in-price 0.14 --out-price 0.28        # $ per 1M tokens
 ```
 
 ### ⚠️ Set the real prices

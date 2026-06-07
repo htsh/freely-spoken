@@ -215,6 +215,7 @@ export default function HomeScreen() {
   const [showAlternates, setShowAlternates] = useState(false);
   const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
   const pulseScale = useRef(new Animated.Value(1)).current;
+  const isStoppingRef = useRef(false);
 
   const appVariant = useMemo<AppVariant>(() => getBuildAppVariant(), []);
   const brand = useMemo(() => getBrand(appVariant), [appVariant]);
@@ -247,6 +248,9 @@ export default function HomeScreen() {
   };
 
   const handleStop = useCallback(async () => {
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+
     try {
       const uri = await stopRecording();
       if (!uri) {
@@ -259,6 +263,8 @@ export default function HomeScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to stop recording');
       setAppState('idle');
+    } finally {
+      isStoppingRef.current = false;
     }
   }, [stopRecording, transcribe]);
 

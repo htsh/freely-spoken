@@ -32,8 +32,8 @@ HF_URL = "https://router.huggingface.co/v1/chat/completions"
 DEFAULT_MODEL = "deepseek-ai/DeepSeek-V4-Flash:fireworks-ai"
 
 # ── ESTIMATES — verify and override with --in-price / --out-price ──────────────
-DEFAULT_IN_PRICE = 0.10   # $ per 1M input (prompt) tokens
-DEFAULT_OUT_PRICE = 0.50  # $ per 1M output (completion) tokens
+DEFAULT_IN_PRICE = 0.14   # $ per 1M input (prompt) tokens
+DEFAULT_OUT_PRICE = 0.28  # $ per 1M output (completion) tokens
 
 # A representative selection prompt: the real backend only asks the model to pick
 # canonical ids from a shortlist and emit small JSON — it never authors text. The
