@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { getBrand } from '@/constants/brand';
 import { Fonts } from '@/constants/theme';
 import { useAudioRecorder } from '@/hooks/use-audio-recorder';
+import { emptyHistory, pushSample } from '@/hooks/waveform-utils';
 import type { SentimentResult } from '@/hooks/sentiment-utils';
 import { useTranscriber } from '@/hooks/use-transcriber';
 import { useSentimentAnalyzer } from '@/hooks/use-sentiment-analyzer';
@@ -49,9 +50,9 @@ const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
   dhammapada: 'passage',
 };
 
-const METER_BAR_COUNT = 5;
-const METER_BAR_MIN_HEIGHT = 6;
-const METER_BAR_HEIGHT_RANGE = 20;
+const WAVEFORM_BAR_COUNT = 28;
+const WAVEFORM_BAR_MIN_HEIGHT = 4;
+const WAVEFORM_BAR_HEIGHT_RANGE = 22;
 
 type HomeStyles = ReturnType<typeof buildStyles>;
 
@@ -64,8 +65,27 @@ function withAlpha(hex: string, alpha: number): string {
   return `#${normalized}${value}`;
 }
 
-function RecordingLevelMeter({ inputLevel, styles }: { inputLevel: number; styles: HomeStyles }) {
-  const normalizedLevel = Math.max(0, Math.min(1, inputLevel));
+function RecordingLevelMeter({
+  inputLevel,
+  reduceMotion,
+  styles,
+}: {
+  inputLevel: number;
+  reduceMotion: boolean;
+  styles: HomeStyles;
+}) {
+  const [history, setHistory] = useState<number[]>(() => emptyHistory(WAVEFORM_BAR_COUNT));
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    setHistory((prev) => pushSample(prev, inputLevel, WAVEFORM_BAR_COUNT));
+  }, [inputLevel, reduceMotion]);
+
+  // Reduce-motion: a calm, non-scrolling row — every bar reflects the current
+  // level only (height changes in place, no horizontal movement).
+  const levels = reduceMotion
+    ? new Array(WAVEFORM_BAR_COUNT).fill(Math.max(0, Math.min(1, inputLevel)))
+    : history;
 
   return (
     <View
@@ -74,23 +94,15 @@ function RecordingLevelMeter({ inputLevel, styles }: { inputLevel: number; style
       accessibilityRole="image"
       accessibilityLabel="Live microphone input level"
     >
-      {Array.from({ length: METER_BAR_COUNT }, (_, index) => {
-        const barProgress = Math.min(1, Math.max(0, normalizedLevel * METER_BAR_COUNT - index));
-        const barHeight = METER_BAR_MIN_HEIGHT + barProgress * METER_BAR_HEIGHT_RANGE;
-
-        return (
-          <View
-            key={`meter-bar-${index}`}
-            style={[
-              styles.levelMeterBar,
-              {
-                height: barHeight,
-                opacity: 0.35 + barProgress * 0.65,
-              },
-            ]}
-          />
-        );
-      })}
+      {levels.map((level, index) => (
+        <View
+          key={`meter-bar-${index}`}
+          style={[
+            styles.levelMeterBar,
+            { height: WAVEFORM_BAR_MIN_HEIGHT + level * WAVEFORM_BAR_HEIGHT_RANGE },
+          ]}
+        />
+      ))}
     </View>
   );
 }
@@ -318,7 +330,7 @@ export default function HomeScreen() {
                 <View style={styles.stopSquare} />
               </Pressable>
             </View>
-            <RecordingLevelMeter inputLevel={inputLevel} styles={styles} />
+            <RecordingLevelMeter inputLevel={inputLevel} reduceMotion={reduceMotionEnabled} styles={styles} />
             <ThemedText style={styles.hint}>Recording...</ThemedText>
           </View>
         )}
@@ -728,9 +740,9 @@ function buildStyles(colors: ReturnType<typeof getBrand>['colors']) {
     alignItems: 'flex-end',
   },
   levelMeterBar: {
-    width: 6,
-    borderRadius: 4,
-    marginHorizontal: 2,
+    width: 3,
+    borderRadius: 2,
+    marginHorizontal: 1,
     backgroundColor: colors.destructive,
   },
   timer: { fontSize: 48, lineHeight: 56, fontVariant: ['tabular-nums'], marginBottom: 24 },
