@@ -164,6 +164,9 @@ export default function HomeScreen() {
     }
   }, [stopRecording, transcribe]);
 
+  // Cap recording length. This fires once because stopRecording() detaches the
+  // status listener (stopping further duration ticks) before appState leaves
+  // 'recording'; handleStop is memoized so this effect doesn't re-run per meter tick.
   useEffect(() => {
     if (appState !== 'recording') return;
     if (duration >= MAX_RECORDING_SECONDS) {
