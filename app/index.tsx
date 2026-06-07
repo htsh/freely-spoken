@@ -53,6 +53,8 @@ const RESPONSE_NOUN_LABELS: Record<AppVariant, string> = {
 
 const WAVEFORM_BAR_COUNT = 28;
 const KEEP_AWAKE_TAG = 'recording-flow';
+const MAX_RECORDING_SECONDS = 90;
+const WRAP_UP_WARNING_SECONDS = 10;
 const WAVEFORM_BAR_MIN_HEIGHT = 4;
 const WAVEFORM_BAR_HEIGHT_RANGE = 22;
 
@@ -161,6 +163,13 @@ export default function HomeScreen() {
       setAppState('idle');
     }
   };
+
+  useEffect(() => {
+    if (appState !== 'recording') return;
+    if (duration >= MAX_RECORDING_SECONDS) {
+      handleStop();
+    }
+  }, [appState, duration, handleStop]);
 
   const handleReset = () => {
     resetTranscriber();
@@ -348,7 +357,11 @@ export default function HomeScreen() {
               </Pressable>
             </View>
             <RecordingLevelMeter inputLevel={inputLevel} reduceMotion={reduceMotionEnabled} styles={styles} />
-            <ThemedText style={styles.hint}>Recording...</ThemedText>
+            <ThemedText style={styles.hint}>
+              {duration >= MAX_RECORDING_SECONDS - WRAP_UP_WARNING_SECONDS
+                ? 'Wrapping up soon…'
+                : 'Recording...'}
+            </ThemedText>
           </View>
         )}
 
