@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { StyleSheet, View, Pressable, ScrollView, Animated, Easing, AccessibilityInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -148,7 +148,7 @@ export default function HomeScreen() {
     }
   };
 
-  const handleStop = async () => {
+  const handleStop = useCallback(async () => {
     try {
       const uri = await stopRecording();
       if (!uri) {
@@ -162,7 +162,7 @@ export default function HomeScreen() {
       setError(e instanceof Error ? e.message : 'Failed to stop recording');
       setAppState('idle');
     }
-  };
+  }, [stopRecording, transcribe]);
 
   useEffect(() => {
     if (appState !== 'recording') return;
