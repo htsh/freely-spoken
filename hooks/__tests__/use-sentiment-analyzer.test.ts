@@ -10,6 +10,7 @@ import {
   containsProtectedTerm,
   normalizeAnonymizedText,
   buildAnonymizedFallback,
+  hasUsableTranscriptSignal,
 } from '../sentiment-utils';
 
 // ── normalizeSentiment ──────────────────────────────────────────────────
@@ -186,6 +187,25 @@ describe('buildAnonymizedFallback', () => {
     const result = buildAnonymizedFallback('i feel great', ['joy']);
     expect(result).toMatch(/personal/);
     expect(result).toMatch(/joyful/);
+  });
+});
+
+// ── hasUsableTranscriptSignal ───────────────────────────────────────────
+
+describe('hasUsableTranscriptSignal', () => {
+  it('rejects empty or filler-only transcripts', () => {
+    expect(hasUsableTranscriptSignal('')).toBe(false);
+    expect(hasUsableTranscriptSignal('uh um hmm')).toBe(false);
+    expect(hasUsableTranscriptSignal('I am')).toBe(false);
+  });
+
+  it('rejects common keyboard-mash transcripts', () => {
+    expect(hasUsableTranscriptSignal('asdf qwer zxcv')).toBe(false);
+  });
+
+  it('accepts short but meaningful emotional input', () => {
+    expect(hasUsableTranscriptSignal('sad')).toBe(true);
+    expect(hasUsableTranscriptSignal('I feel anxious')).toBe(true);
   });
 });
 

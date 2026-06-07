@@ -15,6 +15,7 @@ import {
   normalizeAnonymizedText,
   parseStructuredSentiment,
   extractFirstJSONObject,
+  hasUsableTranscriptSignal,
 } from './sentiment-utils';
 
 const SENTIMENT_PROMPT = `You are a privacy-first sentiment analyzer. Given text, classify its sentiment and emotions.
@@ -46,10 +47,13 @@ export type RawSentimentResponse = {
   value: string;
 };
 
-class SentimentFallbackParseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SentimentFallbackParseError';
+const UNUSABLE_RECORDING_MESSAGE =
+  "Couldn't create a private summary from that recording. Please record again.";
+
+class UnusableRecordingError extends Error {
+  constructor() {
+    super(UNUSABLE_RECORDING_MESSAGE);
+    this.name = 'UnusableRecordingError';
   }
 }
 
@@ -93,13 +97,20 @@ export function useSentimentAnalyzer() {
   const [error, setError] = useState<string | null>(null);
 
   const analyze = useCallback(async (text: string) => {
+    const input = text.trim();
+
     setResult(null);
     setRaw(null);
     setError(null);
     setIsAnalyzing(true);
 
     try {
-      logSentimentDebug('analyze_start', { inputLength: text.length });
+      logSentimentDebug('analyze_start', { inputLength: input.length });
+      if (!hasUsableTranscriptSignal(input)) {
+        logSentimentDebug('input_rejected_low_signal', { inputLength: input.length });
+        throw new UnusableRecordingError();
+      }
+
       const availability = await getTextModelAvailability();
       logSentimentDebug('model_availability', availability as Record<string, unknown>);
       if (availability.status !== 'available') {
@@ -110,7 +121,7 @@ export function useSentimentAnalyzer() {
 
       try {
         const response = await generateObject<RawSentimentResult>({
-          prompt: text,
+          prompt: input,
           instructions: SENTIMENT_PROMPT,
           schema: SENTIMENT_SCHEMA,
         });
@@ -125,7 +136,7 @@ export function useSentimentAnalyzer() {
           sentiment: normalizeSentiment(response.object.sentiment),
           emotions,
           confidence: normalizeConfidence(response.object.confidence),
-          anonymizedText: normalizeAnonymizedText(response.object.anonymizedText, text, emotions),
+          anonymizedText: normalizeAnonymizedText(response.object.anonymizedText, input, emotions),
         });
         logSentimentDebug('object_strategy_success');
       } catch (objectError) {
@@ -133,7 +144,7 @@ export function useSentimentAnalyzer() {
           error: getErrorMessage(objectError),
         });
         const response = await generateText({
-          prompt: text,
+          prompt: input,
           instructions: SENTIMENT_PROMPT,
           temperature: 0.2,
           maxOutputTokens: 384,
@@ -144,16 +155,14 @@ export function useSentimentAnalyzer() {
         logSentimentDebug('text_fallback_received', parseSummary);
 
         try {
-          setResult(parseStructuredSentiment(response.text, text));
+          setResult(parseStructuredSentiment(response.text, input));
           logSentimentDebug('text_fallback_parse_success');
         } catch (parseError) {
           logSentimentDebug('text_fallback_parse_failed', {
             ...parseSummary,
             error: getErrorMessage(parseError),
           });
-          throw new SentimentFallbackParseError(
-            `Sentiment fallback returned non-JSON output. Open Debug -> sentiment + privacy to inspect raw model output. (${getErrorMessage(parseError)})`
-          );
+          throw new UnusableRecordingError();
         }
       }
     } catch (e) {

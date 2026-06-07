@@ -210,6 +210,17 @@ const EMOTION_PHRASES: Record<Emotion, string> = {
   surprise: 'surprised',
 };
 
+const LOW_SIGNAL_TRANSCRIPT_TOKENS = new Set([
+  'ah', 'aha', 'am', 'be', 'been', 'being', 'blah', 'blahblah', 'da',
+  'eh', 'er', 'feel', 'feeling', 'felt', 'hm', 'hmm', 'hmmm', 'la',
+  'like', 'mm', 'mmm', 'na', 'ok', 'okay', 'test', 'testing', 'uh',
+  'uhh', 'um', 'umm', 'ummm',
+]);
+
+const KEYBOARD_MASH_PATTERNS = [
+  /^(?:a?sdf+|dfgh+|fdsa+|ghjk+|hjkl+|jkl+|lkj+|qwer+|zxcv+)$/,
+];
+
 // ── Pure functions ──────────────────────────────────────────────────────
 
 export function normalizeLabel(value: string): string {
@@ -344,6 +355,27 @@ export function describeEmotions(emotions: Emotion[]): string {
 
 export function buildAnonymizedFallback(sourceText: string, emotions: Emotion[]): string {
   return `The person is dealing with a private ${inferPrivateTopic(sourceText)} situation and feels ${describeEmotions(emotions)}.`;
+}
+
+export function hasUsableTranscriptSignal(value: string): boolean {
+  const tokens = value
+    .toLowerCase()
+    .match(/[a-z0-9']+/g) ?? [];
+
+  return tokens.some((token) => {
+    const normalized = token.replace(/^'+|'+$/g, '');
+    if (
+      normalized.length <= 1 ||
+      PRIVACY_STOPWORDS.has(normalized) ||
+      LOW_SIGNAL_TRANSCRIPT_TOKENS.has(normalized) ||
+      /^\d+$/.test(normalized) ||
+      !/[a-z]/.test(normalized)
+    ) {
+      return false;
+    }
+
+    return !KEYBOARD_MASH_PATTERNS.some((pattern) => pattern.test(normalized));
+  });
 }
 
 export function extractProtectedTerms(sourceText: string): string[] {
