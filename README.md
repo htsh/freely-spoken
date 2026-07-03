@@ -50,8 +50,8 @@ The implemented product is branded as **Freely Spoken**. (The repo was originall
 
 | Variant | Product name | Status | Response source |
 | --- | --- | --- | --- |
-| `christian` | Freely Spoken | Implemented | LLM selects Bible references; server fetches canonical Bible text |
-| `dhammapada` | Idle Ashes | Implemented as a second build variant | LLM selects IDs from a backend-owned Dhammapada catalog; server returns stored canonical text |
+| `christian` | Freely Spoken | In TestFlight — [join the beta](https://testflight.apple.com/join/pSCfy6s8) | LLM selects Bible references; server fetches canonical Bible text |
+| `dhammapada` | Idle Ashes | In TestFlight (second build variant) | LLM selects IDs from a backend-owned Dhammapada catalog; server returns stored canonical text |
 | `stoic` | Unreleased stub | Stub only | Planned curated Stoic catalog |
 
 The app is intentionally single-turn. It does not have accounts, persistent history, chat memory, feeds, or a social layer.
@@ -154,10 +154,12 @@ The backend logs operational metadata such as request ID, variant, sentiment lab
 ### Provider fallback
 
 [server/app/llm_runner.py](server/app/llm_runner.py) runs a configurable provider
-chain (set with `LOOKUP_PROVIDER_ORDER`), e.g.:
+chain (set with `LOOKUP_PROVIDER_ORDER`). The production chain runs the free
+tiers first, with paid Hugging Face inference as the final backstop if
+everything else fails:
 
 ```text
-Cerebras -> Groq -> Cloudflare -> OpenRouter
+Groq -> Cerebras -> Mistral -> Cloudflare -> OpenRouter -> Cohere -> Together -> NVIDIA -> Hugging Face (paid)
 ```
 
 Behavior:
@@ -171,7 +173,7 @@ Behavior:
 - all-provider exhaustion returns a structured backend error
 
 Provider adapters exist for Gemini, OpenRouter, Groq, Cloudflare, Together,
-Cerebras, and Cohere. Free-tier limits vary widely (e.g. Gemini Flash's free quota is only a
+Cerebras, Cohere, Mistral, NVIDIA, and Hugging Face. Free-tier limits vary widely (e.g. Gemini Flash's free quota is only a
 handful of requests per day, while Groq and Cerebras are far more generous), so
 order the chain by what your keys can actually sustain. A useful catalog of
 free LLM API tiers and limits:
