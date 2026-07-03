@@ -51,7 +51,7 @@ The implemented product is branded as **Freely Spoken**. (The repo was originall
 | Variant | Product name | Status | Response source |
 | --- | --- | --- | --- |
 | `christian` | Freely Spoken | In TestFlight — [join the beta](https://testflight.apple.com/join/pSCfy6s8) | LLM selects Bible references; server fetches canonical Bible text |
-| `dhammapada` | Idle Ashes | In TestFlight (second build variant) | LLM selects IDs from a backend-owned Dhammapada catalog; server returns stored canonical text |
+| `dhammapada` | Idle Ashes | In TestFlight — [join the beta](https://testflight.apple.com/join/MFmxcCbe) | LLM selects IDs from a backend-owned Dhammapada catalog; server returns stored canonical text |
 | `stoic` | Unreleased stub | Stub only | Planned curated Stoic catalog |
 
 The app is intentionally single-turn. It does not have accounts, persistent history, chat memory, feeds, or a social layer.
