@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Freely Spoken** (repo name `mic-check`): an Expo/React Native iOS app plus a FastAPI lookup backend. The user speaks a reflection; the phone transcribes and anonymizes it on-device, then sends only a sanitized summary to the backend, which uses an LLM to *select* a canonical passage (never to author one).
+**Freely Spoken** (repo `freely-spoken`; the Expo slug remains `mic-check`): an Expo/React Native iOS app plus a FastAPI lookup backend. The user speaks a reflection; the phone transcribes and anonymizes it on-device, then sends only a sanitized summary to the backend, which uses an LLM to *select* a canonical passage (never to author one).
 
 The codebase ships multiple iOS apps from one source via a build-time variant: `christian` (Freely Spoken), `dhammapada` (Idle Ashes, in TestFlight), `stoic` (stub). Variant is chosen by `EXPO_PUBLIC_APP_VARIANT`.
 

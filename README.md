@@ -46,7 +46,7 @@ If you are evaluating this repo as a portfolio project, these are the parts I wo
 
 ## Product variants
 
-The repository name is still `mic-check`, but the implemented product is branded as **Freely Spoken**.
+The implemented product is branded as **Freely Spoken**. (The repo was originally named `mic-check`; the Expo slug and bundle identifiers retain that name because they are bound to the existing EAS project and App Store records.)
 
 | Variant | Product name | Status | Response source |
 | --- | --- | --- | --- |

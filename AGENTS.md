@@ -2,7 +2,7 @@
 
 ## Project Shape
 
-Freely Spoken is an Expo/React Native iOS app with a FastAPI lookup backend. The repository name is still `mic-check`, but the implemented product is Freely Spoken, with `christian` and `dhammapada` variants and a stubbed `stoic` variant. The Dhammapada variant ships as Idle Ashes and is currently in TestFlight.
+Freely Spoken is an Expo/React Native iOS app with a FastAPI lookup backend. The repository is `freely-spoken` (formerly `mic-check`; the Expo slug keeps the old name because it is bound to the EAS project). The implemented product is Freely Spoken, with `christian` and `dhammapada` variants and a stubbed `stoic` variant. The Dhammapada variant ships as Idle Ashes and is currently in TestFlight.
 
 Read `README.md` first for the privacy model, architecture, setup, and repository map. Read `docs/privacy-policy.md` before changing any data collection, logging, retention, network behavior, or wording about privacy.
 
